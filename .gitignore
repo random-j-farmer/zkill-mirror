@@ -1,0 +1,8 @@
+.idea/
+*.iml
+*.x
+x.*
+*~
+
+/zkill-mirror.bobs/
+/zkill-mirror.bolt

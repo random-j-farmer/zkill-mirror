@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
+	"github.com/random-j-farmer/bolt"
 	"github.com/random-j-farmer/d64"
 	"github.com/random-j-farmer/zkill-mirror/internal/zkb"
 )

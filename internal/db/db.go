@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
+	"github.com/random-j-farmer/d64"
 	"github.com/random-j-farmer/zkill-mirror/internal/zkb"
 )
 
@@ -49,10 +51,47 @@ func CloseDB() error {
 	return DB.Close()
 }
 
+// ids seem to have 8 characters.
+// for 9 characters, they encode like this:
+// 987654321|20160831214013|687654321 ===> 34
+// uraXl|0Mln9S|czBLl ===> 18
+// it seems some ids are longer ... but only solar system ids ??
+func d64ID(id uint64) string {
+	return d64.EncodeUInt64(id, 5)
+}
+
+func d64TimeID(dt string, id uint64) string {
+	return fmt.Sprintf("%s|%s", d64Time(dt), d64ID(id))
+}
+
+func d64IDTimeID(id uint64, dt string, id2 uint64) string {
+	return fmt.Sprintf("%s|%s|%s", d64ID(id), d64Time(dt), d64ID(id2))
+}
+
+func d64Ref(ref bobstore.Ref) string {
+	return fmt.Sprintf("%s|%s",
+		d64.EncodeUInt64(uint64(ref.Fno), 3),
+		d64.EncodeUInt64(uint64(ref.Pos), 5),
+	)
+}
+
+func d64Time(s string) string {
+	// 01/02 03:04:05PM '06 -07:00  ===> JAN 01
+	// "2016.08.28 18:10:28"
+	dt, err := time.Parse("2006.01.02 15:04:05", s)
+	if err != nil {
+		log.Printf("warning: can not parse killtime %s", s)
+		return d64.EncodeUInt64(0, 6)
+	}
+
+	seconds := uint64(dt.UTC().Unix())
+	return d64.EncodeUInt64(seconds, 6)
+}
+
 // IndexKillmail indexes the killmail
 func IndexKillmail(ref bobstore.Ref, km *zkb.Killmail) error {
 	err := DB.Batch(func(tx *bolt.Tx) error {
-		refBytes := []byte(ref.String())
+		refBytes := []byte(d64Ref(ref))
 
 		type workitem struct {
 			bucket []byte
@@ -60,28 +99,28 @@ func IndexKillmail(ref bobstore.Ref, km *zkb.Killmail) error {
 		}
 
 		work := []workitem{
-			{kmByID, fmt.Sprintf("%d", km.KillID)},
-			{kmByDate, fmt.Sprintf("%s:%d", km.KillTime, km.KillID)},
-			{kmBySystem, fmt.Sprintf("%d:%s:%d", km.SolarSystemID, km.KillTime, km.KillID)},
-			{kmCharID, fmt.Sprintf("%d:%s:%d", km.Victim.CharID, km.KillTime, km.KillID)},
-			{kmCorpID, fmt.Sprintf("%d:%s:%d", km.Victim.CorporationID, km.KillTime, km.KillID)},
-			{kmAlliID, fmt.Sprintf("%d:%s:%d", km.Victim.AllianceID, km.KillTime, km.KillID)},
+			{kmByID, d64ID(km.KillID)},
+			{kmByDate, d64TimeID(km.KillTime, km.KillID)},
+			{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID)},
+			{kmCharID, d64IDTimeID(km.Victim.CharID, km.KillTime, km.KillID)},
+			{kmCorpID, d64IDTimeID(km.Victim.CorporationID, km.KillTime, km.KillID)},
+			{kmAlliID, d64IDTimeID(km.Victim.AllianceID, km.KillTime, km.KillID)},
 		}
 
 		for _, attacker := range km.Attackers {
-			work = append(work, workitem{kmCharID, fmt.Sprintf("%d:%s:%d", attacker.CharID, km.KillTime, km.KillID)})
-			work = append(work, workitem{kmCorpID, fmt.Sprintf("%d:%s:%d", attacker.CorporationID, km.KillTime, km.KillID)})
-			work = append(work, workitem{kmAlliID, fmt.Sprintf("%d:%s:%d", attacker.AllianceID, km.KillTime, km.KillID)})
+			work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharID, km.KillTime, km.KillID)})
+			work = append(work, workitem{kmCorpID, d64IDTimeID(attacker.CorporationID, km.KillTime, km.KillID)})
+			work = append(work, workitem{kmAlliID, d64IDTimeID(attacker.AllianceID, km.KillTime, km.KillID)})
 		}
 		for _, item := range work {
 			b := tx.Bucket(item.bucket)
 			err := b.Put([]byte(item.key), refBytes)
+			// log.Printf("indexing %s %s", item.key, refBytes)
 			if err != nil {
 				return errors.Wrapf(err, "boldb.Put %s %s", b, item.key)
 			}
 		}
-
-		log.Printf("indexed %s under pk:%d\n", ref, km.KillID)
+		log.Printf("indexed %s under pk:%s\n", ref, d64ID(km.KillID))
 		return nil
 	})
 	if err != nil {

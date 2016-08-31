@@ -20,7 +20,7 @@ To run the server with gin:
 
     ZKM_PORT=8081 ZKM_VERBOSE=true ZKM_CACHE_TEMPLATES=false gin -p 8080 -a 8081 run
 
-Or create a custom config file in ~/.zkill-mirror/, this overrides the
+Or create a custom config file in ~/.ZKILL-MIRROR/, this overrides the
 example config in the distribution.
 
 Embedding templates and static files

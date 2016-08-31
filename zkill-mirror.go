@@ -1,3 +1,12 @@
+/*
+
+zkill-mirror mirrors zkillboard data.
+
+It uses the queue api to pull the killmails.
+The json is stored in a bobstore and boltdb
+is used to index the data.
+
+*/
 package main
 
 import (

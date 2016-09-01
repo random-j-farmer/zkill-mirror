@@ -21,6 +21,7 @@ func Serve() {
 		mustParseTemplates()
 	}
 	http.HandleFunc("/", makeHandler(regexp.MustCompile("^(/)$"), rootHandler))
+	http.HandleFunc("/api/killID/", makeHandler(regexp.MustCompile("^/api/(.*)"), apiHandler))
 	fs := &assetfs.AssetFS{Asset: assets.Asset, AssetDir: assets.AssetDir, AssetInfo: assets.AssetInfo, Prefix: ""}
 	http.Handle("/static/", http.FileServer(fs))
 	listenAndServe()
@@ -70,7 +71,7 @@ func logRequestf(r *http.Request, fmtstr string, args ...interface{}) {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request, url string) {
-	redir := "/pilots/"
+	redir := "/api/"
 	if config.Verbose() {
 		logRequestf(r, "redirecting to %s", redir)
 	}

@@ -4,5 +4,7 @@
 x.*
 *~
 
+/gin-bin
+/*.json
 /zkill-mirror.bobs/
 /zkill-mirror.bolt

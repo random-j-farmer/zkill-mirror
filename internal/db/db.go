@@ -4,13 +4,15 @@ package db
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
-	"github.com/random-j-farmer/bolt"
 	"github.com/random-j-farmer/d64"
+	"github.com/random-j-farmer/zkill-mirror/internal/config"
 	"github.com/random-j-farmer/zkill-mirror/internal/zkb"
 )
 
@@ -25,12 +27,13 @@ var kmCorpID = []byte("kmCharID")
 var kmAlliID = []byte("kmAlliID")
 
 // InitDB opens and initialize DB
-func InitDB(dbname string) {
+func InitDB(dbname string, noSync bool) {
 	var err error
 	DB, err = bolt.Open(dbname, 0666, nil)
 	if err != nil {
 		panic(errors.Wrap(err, "bolt.Open"))
 	}
+	DB.NoSync = noSync
 
 	DB.Update(func(tx *bolt.Tx) error {
 		for _, bucket := range [][]byte{kmByID, kmByDate, kmBySystem, kmCharID, kmCorpID, kmAlliID} {
@@ -42,7 +45,7 @@ func InitDB(dbname string) {
 		return nil
 	})
 	if err != nil {
-		panic(errors.Wrapf(err, "boltdb.Update %s", dbname))
+		panic(errors.Wrapf(err, "bolt.Update %s", dbname))
 	}
 }
 
@@ -50,6 +53,8 @@ func InitDB(dbname string) {
 func CloseDB() error {
 	return DB.Close()
 }
+
+const d64Sep = "|"
 
 // ids seem to have 8 characters.
 // for 9 characters, they encode like this:
@@ -61,20 +66,59 @@ func d64ID(id uint64) string {
 }
 
 func d64TimeID(dt string, id uint64) string {
-	return fmt.Sprintf("%s|%s", d64Time(dt), d64ID(id))
+	return strings.Join([]string{d64Time(dt), d64ID(id)}, d64Sep)
 }
 
 func d64IDTimeID(id uint64, dt string, id2 uint64) string {
-	return fmt.Sprintf("%s|%s|%s", d64ID(id), d64Time(dt), d64ID(id2))
+	return strings.Join([]string{d64Time(dt), d64Time(dt), d64ID(id2)}, d64Sep)
 }
 
 func d64Ref(ref bobstore.Ref) string {
-	return fmt.Sprintf("%s|%s",
+	return strings.Join([]string{
 		d64.EncodeUInt64(uint64(ref.Fno), 3),
 		d64.EncodeUInt64(uint64(ref.Pos), 5),
-	)
+	}, d64Sep)
 }
 
+func dec64Ref(s string) (bobstore.Ref, error) {
+	var ref bobstore.Ref
+
+	parts := strings.Split(s, d64Sep)
+	if len(parts) != 2 {
+		return ref, fmt.Errorf("not a d64Ref: %s %d", s, len(parts))
+	}
+
+	fno, err := d64.DecodeUInt64(parts[0])
+	if err != nil {
+		return ref, errors.Wrapf(err, "dec64Ref %s", s)
+	}
+	pos, err := d64.DecodeUInt64(parts[1])
+	if err != nil {
+		return ref, errors.Wrapf(err, "dec64Ref %s", s)
+	}
+
+	ref.Fno = uint16(fno)
+	ref.Pos = uint32(pos)
+
+	return ref, nil
+}
+
+var d64Epoch uint64
+
+func init() {
+	dt, err := time.Parse(time.RFC3339, "2040-01-01T00:00:00Z")
+	if err != nil {
+		log.Panicf("can not initialize d64Epoch: %v", err)
+	}
+
+	d64Epoch = uint64(dt.UTC().Unix())
+}
+
+// d64Time is number of seconds UNTIL 2040-01-01
+// this way, natural sort order for timestamps is most recent first
+// current dates would encode with only 5 digits, but for 2006
+// that does not work anymore ... maybe we'll need old killmails
+// one day.
 func d64Time(s string) string {
 	// 01/02 03:04:05PM '06 -07:00  ===> JAN 01
 	// "2016.08.28 18:10:28"
@@ -84,7 +128,7 @@ func d64Time(s string) string {
 		return d64.EncodeUInt64(0, 6)
 	}
 
-	seconds := uint64(dt.UTC().Unix())
+	seconds := d64Epoch - uint64(dt.UTC().Unix())
 	return d64.EncodeUInt64(seconds, 6)
 }
 
@@ -115,18 +159,40 @@ func IndexKillmail(ref bobstore.Ref, km *zkb.Killmail) error {
 		for _, item := range work {
 			b := tx.Bucket(item.bucket)
 			err := b.Put([]byte(item.key), refBytes)
-			// log.Printf("indexing %s %s", item.key, refBytes)
+			if config.Verbose() {
+				log.Printf("indexing %s %s", item.key, refBytes)
+			}
 			if err != nil {
-				return errors.Wrapf(err, "boldb.Put %s %s", b, item.key)
+				return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
 			}
 		}
-		log.Printf("indexed %s under pk:%s\n", ref, d64ID(km.KillID))
+		log.Printf("indexed %s under pk:%d\n", ref, km.KillID)
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "boltdb.Batch")
+		return errors.Wrap(err, "bolt.Batch")
 	}
 	return nil
+}
+
+// ByKillID queries the DB by killID
+func ByKillID(killID uint64) (bobstore.Ref, error) {
+	var ref bobstore.Ref
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(kmByID)
+		k := d64ID(killID)
+		refStr := string(b.Get([]byte(k)))
+		if refStr == "" {
+			return fmt.Errorf("no such key: %s", k)
+		}
+		var err error
+		ref, err = dec64Ref(refStr)
+		return err
+	})
+	if err != nil {
+		return ref, errors.Wrap(err, "bolt.View")
+	}
+	return ref, nil
 }
 
 // IndexWorker does the indexing

@@ -27,6 +27,14 @@ func DBName() string {
 	return viper.GetString("db_name")
 }
 
+// DBNoSync controls fdatasync/sync
+//
+// Setting this to true will skip the sync.
+// Dangerous, but fast.
+func DBNoSync() bool {
+	return viper.GetBool("db_nosync")
+}
+
 // BobsName gives the name of the blob store
 func BobsName() string {
 	return viper.GetString("bobs_name")
@@ -35,6 +43,11 @@ func BobsName() string {
 // PullDelay is the maximum time to wait before polling an idle zkillboard
 func PullDelay() time.Duration {
 	return viper.GetDuration("pull_delay")
+}
+
+// PullEnabled - is pulling enabled?
+func PullEnabled() bool {
+	return viper.GetBool("pull_enabled")
 }
 
 // Port to listen on
@@ -52,12 +65,24 @@ func CacheTemplates() bool {
 	return viper.GetBool("cache_templates")
 }
 
+// DefaultCommand - usually help.
+// Set to serve for development with gin
+func DefaultCommand() string {
+	return viper.GetString("default_command")
+}
+
 func init() {
-	viper.SetDefault("db_name", "zkill-mirror.bolt")
-	viper.SetDefault("bobs_name", "zkill-mirror.bobs")
-	viper.SetDefault("pull_delay", 5*time.Minute)
-	viper.SetDefault("port", "8080")
 	viper.SetDefault("verbose", false)
+	viper.SetDefault("default_command", "help")
+
+	viper.SetDefault("db_name", "zkill-mirror.bolt")
+	viper.SetDefault("db_nosync", false)
+	viper.SetDefault("bobs_name", "zkill-mirror.bobs")
+
+	viper.SetDefault("pull_delay", 5*time.Minute)
+	viper.SetDefault("pull_enabled", true)
+
+	viper.SetDefault("port", "8080")
 	viper.SetDefault("cache_templates", true)
 
 	viper.SetConfigName("zkill-mirror")
@@ -69,7 +94,7 @@ func init() {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "config.init"))
+		log.Fatal(errors.Wrap(err, "config.init: consider touching zkill-mirror.toml in $PWD"))
 	}
 
 	viper.SetEnvPrefix("ZKM")
@@ -79,11 +104,18 @@ func init() {
 		sep := "-------------------------------------"
 		log.Println(sep)
 		log.Println("Configuration:")
+		log.Println("verbose:\t", Verbose())
+		log.Println("default_command:\t", DefaultCommand())
+		log.Println()
 		log.Println("db_name:\t", DBName())
+		log.Println("db_nosync:\t", DBNoSync())
 		log.Println("bobs_name:\t", BobsName())
+		log.Println()
+		log.Println("port", Port())
+		log.Println("cache_templates", CacheTemplates())
+		log.Println()
 		log.Println("port:\t", Port())
 		log.Println("cache_templates:\t", CacheTemplates())
-		log.Println("verbose:\t", Verbose())
 		log.Println(sep)
 	}
 }

@@ -13,6 +13,8 @@
 #
 # name of database file
 # db_name = "zkill-mirror.bolt"
+# disable sync for db files.  dangerous.  fast.
+# db_nosync = false
 
 # bobstorage configuration
 #
@@ -20,14 +22,19 @@
 # bobs_name = "zkill-mirror.bobs"
 #
 
-# pull_delay
+# pulling of zkill data
 #
 # max duration to wait before polling zkillboard
 # pull_delay = 5m
+#
+# pulling is enabled by default.
+# pull_enabled = true
 
 # cache templates
 # cache_templates = true
 
 # verbose output
-#
 # verbose = false
+
+# default command: usually help, but for development with gin serve is better
+# default_command = "help"

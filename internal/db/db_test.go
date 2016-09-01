@@ -8,7 +8,7 @@ import (
 )
 
 func TestStoreAndLookup(t *testing.T) {
-	InitDB("testdb.x")
+	InitDB("testdb.x", true)
 	defer DB.Close()
 
 	km := &zkb.Killmail{

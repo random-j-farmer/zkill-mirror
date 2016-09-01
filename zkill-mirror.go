@@ -18,6 +18,7 @@ import (
 	"syscall"
 
 	"github.com/random-j-farmer/bobstore"
+	"github.com/random-j-farmer/zkill-mirror/internal/blobs"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
 	"github.com/random-j-farmer/zkill-mirror/internal/db"
 	"github.com/random-j-farmer/zkill-mirror/internal/server"
@@ -25,7 +26,7 @@ import (
 )
 
 func main() {
-	cmd := "help"
+	cmd := config.DefaultCommand()
 	if len(os.Args) == 2 {
 		cmd = os.Args[1]
 	}
@@ -60,13 +61,8 @@ Where COMMAND is one of:
 var bobsDB *bobstore.DB
 
 func myInit() {
-	db.InitDB(config.DBName())
-
-	var err error
-	bobsDB, err = bobstore.OpenRW(config.BobsName())
-	if err != nil {
-		log.Panicf("could not open blob store %s: %v", config.BobsName(), err)
-	}
+	db.InitDB(config.DBName(), config.DBNoSync())
+	blobs.InitDB(config.BobsName())
 }
 
 // cleanup all resources when shutting down
@@ -86,28 +82,30 @@ func closeDBs() {
 		log.Printf("cleanup: error closing %s: %v", config.DBName(), err)
 	}
 
-	err = bobsDB.Close()
+	err = blobs.Close()
 	if err != nil {
 		log.Printf("cleanup: error closing bobs db: %v", err)
 	}
 }
 
 func serve() {
-	var wg sync.WaitGroup
-	stop := make(chan struct{})
-	kmQueue := make(chan *zkb.KillmailWithRef, 1)
+	if config.PullEnabled() {
+		var wg sync.WaitGroup
+		stop := make(chan struct{})
+		kmQueue := make(chan *zkb.KillmailWithRef, 1)
 
-	go zkb.PullKillmails(bobsDB, kmQueue, stop, &wg)
-	go db.IndexWorker(kmQueue, &wg)
+		go zkb.PullKillmails(bobsDB, kmQueue, stop, &wg)
+		go db.IndexWorker(kmQueue, &wg)
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
-	go func() {
-		<-sigChan
-		cleanup(stop, &wg)
-		os.Exit(0)
-	}()
+		go func() {
+			<-sigChan
+			cleanup(stop, &wg)
+			os.Exit(0)
+		}()
+	}
 
 	// http server is not stopped - only worker goroutines and db handle
 	server.Serve()

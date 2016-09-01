@@ -41,6 +41,51 @@ func apiHandler(w http.ResponseWriter, r *http.Request, url string) {
 		if err != nil {
 			logRequestf(r, "error writing response: %v", err)
 		}
+		return
+	}
+
+	newest, err := db.Newest(1000)
+	if err != nil {
+		apiError(w, r, errors.Wrap(err, "db.Newest"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, err = fmt.Fprint(w, "[")
+	if err != nil {
+		apiError(w, r, err)
+		return
+	}
+
+	lastIdx := len(newest) - 1
+	for i, ref := range newest {
+		logRequestf(r, "newest refs: %v", ref)
+
+		b, err2 := blobs.DB.Read(ref)
+		if err2 != nil {
+			apiError(w, r, errors.Wrap(err2, "bobstore.read"))
+			return
+		}
+
+		_, err2 = fmt.Fprintf(w, "%s", b)
+		if err2 != nil {
+			apiError(w, r, err2)
+			return
+		}
+
+		if i < lastIdx {
+			_, err2 = fmt.Fprint(w, ",")
+			if err2 != nil {
+				apiError(w, r, err2)
+				return
+			}
+		}
+	}
+
+	_, err = fmt.Fprint(w, "]")
+	if err != nil {
+		apiError(w, r, err)
+		return
 	}
 }
 

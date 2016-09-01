@@ -195,6 +195,32 @@ func ByKillID(killID uint64) (bobstore.Ref, error) {
 	return ref, nil
 }
 
+// Newest returns the newest limit killmail refs
+func Newest(limit int) ([]bobstore.Ref, error) {
+	var refs = make([]bobstore.Ref, 0, limit)
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(kmByDate)
+
+		c := b.Cursor()
+		k, v := c.First()
+		for i := 0; i < limit || k == nil; i++ {
+			var ref bobstore.Ref
+			ref, err := dec64Ref(string(v))
+			if err != nil {
+				return err
+			}
+			refs = append(refs, ref)
+
+			k, v = c.Next()
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "bolt.View")
+	}
+	return refs, nil
+}
+
 // IndexWorker does the indexing
 func IndexWorker(kmQueue <-chan *zkb.KillmailWithRef, wg *sync.WaitGroup) {
 	wg.Add(1)

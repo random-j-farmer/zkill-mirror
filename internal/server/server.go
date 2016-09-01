@@ -21,7 +21,7 @@ func Serve() {
 		mustParseTemplates()
 	}
 	http.HandleFunc("/", makeHandler(regexp.MustCompile("^(/)$"), rootHandler))
-	http.HandleFunc("/api/killID/", makeHandler(regexp.MustCompile("^/api/(.*)"), apiHandler))
+	http.HandleFunc("/api/", makeHandler(regexp.MustCompile("^/api/(.*)"), apiHandler))
 	fs := &assetfs.AssetFS{Asset: assets.Asset, AssetDir: assets.AssetDir, AssetInfo: assets.AssetInfo, Prefix: ""}
 	http.Handle("/static/", http.FileServer(fs))
 	listenAndServe()

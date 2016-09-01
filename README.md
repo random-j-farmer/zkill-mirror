@@ -23,6 +23,13 @@ To run the server with gin:
 Or create a custom config file in ~/.ZKILL-MIRROR/, this overrides the
 example config in the distribution.
 
+  time http http://localhost:3000/api/ | jq -e '.[].package.killmail.solarSystem.name' | wc -l
+  1000
+
+  real	0m0.489s
+  user	0m0.437s
+  sys	0m0.067s
+
 Embedding templates and static files
 ------------------------------------
 

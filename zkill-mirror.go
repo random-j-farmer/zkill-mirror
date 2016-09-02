@@ -58,8 +58,6 @@ Where COMMAND is one of:
 	}
 }
 
-var bobsDB *bobstore.DB
-
 func myInit() {
 	db.InitDB(config.DBName(), config.DBNoSync())
 	blobs.InitDB(config.BobsName())
@@ -94,7 +92,7 @@ func serve() {
 		stop := make(chan struct{})
 		kmQueue := make(chan *zkb.KillmailWithRef, 1)
 
-		go zkb.PullKillmails(bobsDB, kmQueue, stop, &wg)
+		go zkb.PullKillmails(blobs.DB, kmQueue, stop, &wg)
 		go db.IndexWorker(kmQueue, &wg)
 
 		sigChan := make(chan os.Signal, 1)
@@ -116,9 +114,9 @@ func serve() {
 func reindex() {
 	defer closeDBs()
 
-	cursor := bobsDB.Cursor(bobstore.Ref{})
+	cursor := blobs.DB.Cursor(bobstore.Ref{})
 	for cursor.Next() {
-		b, err := bobsDB.Read(cursor.Ref())
+		b, err := blobs.DB.Read(cursor.Ref())
 		if err != nil {
 			log.Fatalf("reindex: bobsDB.Read %s: %v", cursor.Ref(), err)
 		}

@@ -3,108 +3,199 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/random-j-farmer/jq"
 	"github.com/random-j-farmer/zkill-mirror/internal/blobs"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
 	"github.com/random-j-farmer/zkill-mirror/internal/db"
 )
 
+const maxReturns = 1000
+
 type apiQuery struct {
-	KillID uint64
+	KillID        uint64
+	CharacterID   uint64
+	CorporationID uint64
+	AllianceID    uint64
 }
 
 func apiHandler(w http.ResponseWriter, r *http.Request, url string) {
-	q := unmarshalQuery(url)
-
-	if q.KillID > 0 {
-		ref, err := db.ByKillID(q.KillID)
-		if err != nil {
-			apiError(w, r, errors.Wrap(err, "db.ByKillID"))
-			return
-		}
-
-		if config.Verbose() {
-			logRequestf(r, "killID %d: retrieving %v", q.KillID, ref)
-		}
-
-		b, err := blobs.DB.Read(ref)
-		if err != nil {
-			apiError(w, r, errors.Wrap(err, "bobstore.read"))
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_, err = w.Write(b)
-		if err != nil {
-			logRequestf(r, "error writing response: %v", err)
-		}
+	q, err := unmarshalQuery(url)
+	if err != nil {
+		apiError(w, r, err)
 		return
 	}
 
-	newest, err := db.Newest(1000)
+	switch {
+	case q.KillID > 0:
+		err = apiByKillID(w, r, q)
+
+	case q.CharacterID > 0:
+		err = apiByCharacterID(w, r, q)
+
+	default:
+		logRequestf(r, "hmmmm ... maybe you would like all the newest kills?")
+		err = apiNewest(w, r, q)
+	}
+
 	if err != nil {
-		apiError(w, r, errors.Wrap(err, "db.Newest"))
-		return
+		apiError(w, r, err)
+	}
+}
+
+func apiByKillID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
+	ref, err := db.ByKillID(q.KillID)
+	if err != nil {
+		return errors.Wrap(err, "db.ByKillID")
+	}
+
+	if config.Verbose() {
+		logRequestf(r, "killID %d: retrieving %v", q.KillID, ref)
+	}
+
+	b, err := blobs.DB.Read(ref)
+	if err != nil {
+		return errors.Wrap(err, "bobstore.read")
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, err = fmt.Fprint(w, "[")
+	_, err = w.Write(b)
 	if err != nil {
-		apiError(w, r, err)
-		return
+		return errors.Wrap(err, "response.write")
 	}
 
-	lastIdx := len(newest) - 1
-	for i, ref := range newest {
-		logRequestf(r, "newest refs: %v", ref)
-
-		b, err2 := blobs.DB.Read(ref)
-		if err2 != nil {
-			apiError(w, r, errors.Wrap(err2, "bobstore.read"))
-			return
-		}
-
-		_, err2 = fmt.Fprintf(w, "%s", b)
-		if err2 != nil {
-			apiError(w, r, err2)
-			return
-		}
-
-		if i < lastIdx {
-			_, err2 = fmt.Fprint(w, ",")
-			if err2 != nil {
-				apiError(w, r, err2)
-				return
-			}
-		}
-	}
-
-	_, err = fmt.Fprint(w, "]")
-	if err != nil {
-		apiError(w, r, err)
-		return
-	}
+	return nil
 }
 
-func apiError(w http.ResponseWriter, r *http.Request, err error) {
+func apiByCharacterID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
+	refs, err := db.ByCharacterID(q.CharacterID, maxReturns)
+	if err != nil {
+		return errors.Wrap(err, "db.ByCharacterID")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, err = w.Write([]byte{'['})
+	if err != nil {
+		return errors.Wrap(err, "response.Write")
+	}
+
+	size := len(refs)
+	for i, ref := range refs {
+		b, err := blobs.DB.Read(ref)
+		if err != nil {
+			return errors.Wrapf(err, "bobstore.Read %s", ref)
+		}
+
+		if len(b) == cap(b) {
+			logRequestf(r, "warning: at cap for: %s - inefficient append", ref)
+		}
+		// append a , or ] so we only have to do one write ...
+		if i == size-1 {
+			b = append(b, ']')
+		} else {
+			b = append(b, ',')
+		}
+
+		_, err = w.Write(b)
+		if err != nil {
+			return errors.Wrap(err, "response.write")
+		}
+	}
+
+	return nil
+}
+
+func apiNewest(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
+	newest, err := db.Newest(maxReturns)
+	if err != nil {
+		return errors.Wrap(err, "db.Newest")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, err = w.Write([]byte{'['})
+	if err != nil {
+		return errors.Wrap(err, "response.Write")
+	}
+
+	size := len(newest)
+	for i, ref := range newest {
+		b, err := blobs.DB.Read(ref)
+		if err != nil {
+			return errors.Wrapf(err, "bobstore.Read %s", ref)
+		}
+
+		if len(b) == cap(b) {
+			logRequestf(r, "warning: at cap for: %s - inefficient append", ref)
+		}
+		// append a , or ] so we only have to do one write ...
+		if i == size-1 {
+			b = append(b, ']')
+		} else {
+			b = append(b, ',')
+		}
+
+		_, err = w.Write(b)
+		if err != nil {
+			return errors.Wrap(err, "response.write")
+		}
+	}
+
+	return nil
+}
+
+func apiError(w http.ResponseWriter, r *http.Request, err error) error {
 	logRequestf(r, "error: %v", err)
 	http.Error(w, fmt.Sprintf("error: %v", err), 500)
+	return err
 }
 
-func unmarshalQuery(url string) *apiQuery {
+func unmarshalQuery(url string) (*apiQuery, error) {
 	parts := strings.Split(url, "/")
-	m := make(map[string]interface{})
-	ll := len(parts) - len(parts)&1
-	for i := 0; i < ll; i = i + 2 {
-		m[parts[i]] = parts[i+1]
+
+	// hangle dangling key (no value)
+	if len(parts)&1 == 1 {
+		if parts[len(parts)-1] == "" {
+			parts = parts[:len(parts)-1]
+		} else {
+			parts = append(parts, "")
+		}
 	}
 
-	q := jq.New(m)
+	q := &apiQuery{}
 
-	return &apiQuery{
-		KillID: uint64(q.UInt64("killID")),
+	var err error
+
+	for i := 0; i < len(parts); i = i + 2 {
+		switch parts[i] {
+		case "killID":
+			q.KillID, err = str2id(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		case "characterID":
+			q.CharacterID, err = str2id(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		case "corporationID":
+			q.CorporationID, err = str2id(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		case "allianceID":
+			q.AllianceID, err = str2id(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		default:
+			return nil, fmt.Errorf("invalid query key: %s", parts[i])
+		}
 	}
+	return q, nil
+}
+
+func str2id(s string) (uint64, error) {
+	return strconv.ParseUint(s, 10, 64)
 }

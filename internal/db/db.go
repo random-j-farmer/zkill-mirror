@@ -2,6 +2,7 @@
 package db
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"strings"
@@ -195,6 +196,47 @@ func ByKillID(killID uint64) (bobstore.Ref, error) {
 	return ref, nil
 }
 
+// ByCharacterID gives the latest limit killmails of the character
+func ByCharacterID(characterID uint64, limit int) ([]bobstore.Ref, error) {
+	refs := make([]bobstore.Ref, 0, limit)
+	prefix := []byte(fmt.Sprintf("%s%s", d64ID(characterID), d64Sep))
+
+	if config.Verbose() {
+		log.Printf("scanning for character %d by prefix %s", characterID, prefix)
+	}
+
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(kmCharID)
+
+		c := b.Cursor()
+		k, v := c.Seek(prefix)
+		for i := 0; i < limit && k != nil; i++ {
+			var ref bobstore.Ref
+
+			if !bytes.HasPrefix(k, prefix) {
+				break
+			}
+
+			if config.Verbose() {
+				log.Printf("found %s %s", k, v)
+			}
+
+			ref, err := dec64Ref(string(v))
+			if err != nil {
+				return err
+			}
+			refs = append(refs, ref)
+
+			k, v = c.Next()
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "bolt.View")
+	}
+	return refs, nil
+}
+
 // Newest returns the newest limit killmail refs
 func Newest(limit int) ([]bobstore.Ref, error) {
 	var refs = make([]bobstore.Ref, 0, limit)
@@ -203,7 +245,7 @@ func Newest(limit int) ([]bobstore.Ref, error) {
 
 		c := b.Cursor()
 		k, v := c.First()
-		for i := 0; i < limit || k == nil; i++ {
+		for i := 0; i < limit && k != nil; i++ {
 			var ref bobstore.Ref
 			ref, err := dec64Ref(string(v))
 			if err != nil {

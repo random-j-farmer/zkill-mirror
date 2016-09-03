@@ -53,3 +53,6 @@ Reindexing
   reindex_batch_size=1000 turned it into 0.293 seconds.  Same settings but db_nosync_false:
   0.297 seconds.  So: db_nosync not needed anymore
 * Naive approach for 100MB was 11(? i think) minutes (db_nosync=true). Batching the day after:
+  no sync, batch size 100, 4 workers: 38 seconds.  with 8 workers and batch_size 1000: 32 seconds.
+  bobstore gzip takes 1min 12 seconds (although decompress/compress is done in only 1 thread).
+  cp of the input file: 0.5 seconds.

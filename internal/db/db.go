@@ -71,7 +71,7 @@ func d64TimeID(dt string, id uint64) string {
 }
 
 func d64IDTimeID(id uint64, dt string, id2 uint64) string {
-	return strings.Join([]string{d64Time(dt), d64Time(dt), d64ID(id2)}, d64Sep)
+	return strings.Join([]string{d64ID(id), d64Time(dt), d64ID(id2)}, d64Sep)
 }
 
 func d64Ref(ref bobstore.Ref) string {
@@ -151,6 +151,11 @@ func IndexKillmails(kms []*zkb.KillmailWithRef) error {
 		for _, kmwr := range kms {
 			refBytes, km := []byte(d64Ref(kmwr.Ref)), kmwr.Killmail
 
+			if config.Verbose() {
+				log.Printf("indexing killID %d charID %d corpID %d alliID %d", km.KillID,
+					km.Victim.CharID, km.Victim.CorporationID, km.Victim.AllianceID)
+			}
+
 			work := []workitem{
 				{kmByID, d64ID(km.KillID)},
 				{kmByDate, d64TimeID(km.KillTime, km.KillID)},
@@ -170,13 +175,13 @@ func IndexKillmails(kms []*zkb.KillmailWithRef) error {
 
 				err := b.Put([]byte(item.key), refBytes)
 				if config.Verbose() {
-					log.Printf("indexing %s %s", item.key, refBytes)
+					log.Printf("indexing %s %s", item.bucket, item.key)
 				}
 				if err != nil {
 					return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
 				}
 			}
-			log.Printf("indexed %s under pk:%d\n", refBytes, km.KillID)
+			log.Printf("indexed %s under pk:%d\n", kmwr.Ref, km.KillID)
 		}
 
 		return nil
@@ -209,15 +214,40 @@ func ByKillID(killID uint64) (bobstore.Ref, error) {
 
 // ByCharacterID gives the latest limit killmails of the character
 func ByCharacterID(characterID uint64, limit int) ([]bobstore.Ref, error) {
-	refs := make([]bobstore.Ref, 0, limit)
 	prefix := []byte(fmt.Sprintf("%s%s", d64ID(characterID), d64Sep))
 
+	return byPrefix(prefix, kmCharID, limit)
+}
+
+// ByCorporationID gives the latest limit killmails of the Corporation
+func ByCorporationID(corpID uint64, limit int) ([]bobstore.Ref, error) {
+	prefix := []byte(fmt.Sprintf("%s%s", d64ID(corpID), d64Sep))
+
+	return byPrefix(prefix, kmCorpID, limit)
+}
+
+// ByAllianceID gives the latest limit killmails of the alliance
+func ByAllianceID(allianceID uint64, limit int) ([]bobstore.Ref, error) {
+	prefix := []byte(fmt.Sprintf("%s%s", d64ID(allianceID), d64Sep))
+
+	return byPrefix(prefix, kmAlliID, limit)
+}
+
+// Newest returns the newest limit killmail refs
+func Newest(limit int) ([]bobstore.Ref, error) {
+	return byPrefix([]byte(""), kmByDate, limit)
+}
+
+// byPrefix returns killmails by bucket and prefix
+func byPrefix(prefix []byte, bucket []byte, limit int) ([]bobstore.Ref, error) {
+	refs := make([]bobstore.Ref, 0, limit)
+
 	if config.Verbose() {
-		log.Printf("scanning for character %d by prefix %s", characterID, prefix)
+		log.Printf("scanning for %s by prefix %s", bucket, prefix)
 	}
 
 	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(kmCharID)
+		b := tx.Bucket(bucket)
 
 		c := b.Cursor()
 		k, v := c.Seek(prefix)
@@ -228,10 +258,6 @@ func ByCharacterID(characterID uint64, limit int) ([]bobstore.Ref, error) {
 				break
 			}
 
-			if config.Verbose() {
-				log.Printf("found %s %s", k, v)
-			}
-
 			ref, err := dec64Ref(string(v))
 			if err != nil {
 				return err
@@ -245,32 +271,11 @@ func ByCharacterID(characterID uint64, limit int) ([]bobstore.Ref, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "bolt.View")
 	}
-	return refs, nil
-}
 
-// Newest returns the newest limit killmail refs
-func Newest(limit int) ([]bobstore.Ref, error) {
-	var refs = make([]bobstore.Ref, 0, limit)
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(kmByDate)
-
-		c := b.Cursor()
-		k, v := c.First()
-		for i := 0; i < limit && k != nil; i++ {
-			var ref bobstore.Ref
-			ref, err := dec64Ref(string(v))
-			if err != nil {
-				return err
-			}
-			refs = append(refs, ref)
-
-			k, v = c.Next()
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "bolt.View")
+	if config.Verbose() {
+		log.Printf("scanning for %s by prefix %s: found %d", bucket, prefix, len(refs))
 	}
+
 	return refs, nil
 }
 

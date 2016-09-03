@@ -42,3 +42,14 @@ served immediately.
 Before making a production release, run go generate without the debug tag.
 This will really embed the files in internal/assets, only the executable
 is needed on the production server.
+
+
+Reindexing
+----------
+
+* Naive approach: Reindexing 1.7MB of gzipped input took 15 seconds (db_nosync=true).
+  bobstore gzip on the same input took 0.5 seconds. Doing it in batches of 100 (workers=4)
+  turned that into 0.5 seconds for the same input.  With db_nosync=true, reindex_workers=8,
+  reindex_batch_size=1000 turned it into 0.293 seconds.  Same settings but db_nosync_false:
+  0.297 seconds.  So: db_nosync not needed anymore
+* Naive approach for 100MB was 11(? i think) minutes (db_nosync=true). Batching the day after:

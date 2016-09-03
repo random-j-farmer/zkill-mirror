@@ -133,41 +133,52 @@ func d64Time(s string) string {
 	return d64.EncodeUInt64(seconds, 6)
 }
 
-// IndexKillmail indexes the killmail
+// IndexKillmail indexes a single killmail
 func IndexKillmail(ref bobstore.Ref, km *zkb.Killmail) error {
+	kms := []*zkb.KillmailWithRef{&zkb.KillmailWithRef{Ref: ref, Killmail: km}}
+	return IndexKillmails(kms)
+}
+
+// IndexKillmails indexes a bunch of killmails
+func IndexKillmails(kms []*zkb.KillmailWithRef) error {
 	err := DB.Batch(func(tx *bolt.Tx) error {
-		refBytes := []byte(d64Ref(ref))
 
 		type workitem struct {
 			bucket []byte
 			key    string
 		}
 
-		work := []workitem{
-			{kmByID, d64ID(km.KillID)},
-			{kmByDate, d64TimeID(km.KillTime, km.KillID)},
-			{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID)},
-			{kmCharID, d64IDTimeID(km.Victim.CharID, km.KillTime, km.KillID)},
-			{kmCorpID, d64IDTimeID(km.Victim.CorporationID, km.KillTime, km.KillID)},
-			{kmAlliID, d64IDTimeID(km.Victim.AllianceID, km.KillTime, km.KillID)},
+		for _, kmwr := range kms {
+			refBytes, km := []byte(d64Ref(kmwr.Ref)), kmwr.Killmail
+
+			work := []workitem{
+				{kmByID, d64ID(km.KillID)},
+				{kmByDate, d64TimeID(km.KillTime, km.KillID)},
+				{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID)},
+				{kmCharID, d64IDTimeID(km.Victim.CharID, km.KillTime, km.KillID)},
+				{kmCorpID, d64IDTimeID(km.Victim.CorporationID, km.KillTime, km.KillID)},
+				{kmAlliID, d64IDTimeID(km.Victim.AllianceID, km.KillTime, km.KillID)},
+			}
+
+			for _, attacker := range km.Attackers {
+				work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharID, km.KillTime, km.KillID)})
+				work = append(work, workitem{kmCorpID, d64IDTimeID(attacker.CorporationID, km.KillTime, km.KillID)})
+				work = append(work, workitem{kmAlliID, d64IDTimeID(attacker.AllianceID, km.KillTime, km.KillID)})
+			}
+			for _, item := range work {
+				b := tx.Bucket(item.bucket)
+
+				err := b.Put([]byte(item.key), refBytes)
+				if config.Verbose() {
+					log.Printf("indexing %s %s", item.key, refBytes)
+				}
+				if err != nil {
+					return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
+				}
+			}
+			log.Printf("indexed %s under pk:%d\n", refBytes, km.KillID)
 		}
 
-		for _, attacker := range km.Attackers {
-			work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharID, km.KillTime, km.KillID)})
-			work = append(work, workitem{kmCorpID, d64IDTimeID(attacker.CorporationID, km.KillTime, km.KillID)})
-			work = append(work, workitem{kmAlliID, d64IDTimeID(attacker.AllianceID, km.KillTime, km.KillID)})
-		}
-		for _, item := range work {
-			b := tx.Bucket(item.bucket)
-			err := b.Put([]byte(item.key), refBytes)
-			if config.Verbose() {
-				log.Printf("indexing %s %s", item.key, refBytes)
-			}
-			if err != nil {
-				return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
-			}
-		}
-		log.Printf("indexed %s under pk:%d\n", ref, km.KillID)
 		return nil
 	})
 	if err != nil {

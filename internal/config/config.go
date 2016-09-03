@@ -40,6 +40,17 @@ func BobsName() string {
 	return viper.GetString("bobs_name")
 }
 
+// ReindexBatchSize number of killmails to index in one transaction
+func ReindexBatchSize() int {
+	return viper.GetInt("reindex_batch_size")
+}
+
+// ReindexWorkers is the number of workers for reindexing.
+// A worker decompresses the input and parses the killmail
+func ReindexWorkers() int {
+	return viper.GetInt("reindex_workers")
+}
+
 // PullDelay is the maximum time to wait before polling an idle zkillboard
 func PullDelay() time.Duration {
 	return viper.GetDuration("pull_delay")
@@ -78,6 +89,8 @@ func init() {
 	viper.SetDefault("db_name", "zkill-mirror.bolt")
 	viper.SetDefault("db_nosync", false)
 	viper.SetDefault("bobs_name", "zkill-mirror.bobs")
+	viper.SetDefault("reindex_batch_size", 100)
+	viper.SetDefault("reindex_workers", 4)
 
 	viper.SetDefault("pull_delay", 5*time.Minute)
 	viper.SetDefault("pull_enabled", true)

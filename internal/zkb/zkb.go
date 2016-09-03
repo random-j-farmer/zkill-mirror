@@ -23,7 +23,7 @@ import (
 // PullKillmails until stop channel is closed
 // this goroutine deletes non-critical work but does the db updates,
 // so this goroutine is tracked via the waitgroup, while httpWorker is not
-func PullKillmails(bdb *bobstore.DB, kmQueue chan<- *KillmailWithRef, stop <-chan struct{}, wg *sync.WaitGroup) {
+func PullKillmails(bdb *bobstore.DB, kmQueue chan<- *Killmail, stop <-chan struct{}, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -87,7 +87,7 @@ var client = &http.Client{
 
 var emptyRegex = regexp.MustCompile(`^\s*{\s*"?package"?:\s*null\s*}\s*`)
 
-func pullKillmail(bdb *bobstore.DB, kmQueue chan<- *KillmailWithRef) (sleepy bool) {
+func pullKillmail(bdb *bobstore.DB, kmQueue chan<- *Killmail) (sleepy bool) {
 	resp, err := client.Get("https://redisq.zkillboard.com/listen.php")
 	if err != nil {
 		log.Printf("zkb.httpWorker: get error: %v", err)
@@ -113,7 +113,8 @@ func pullKillmail(bdb *bobstore.DB, kmQueue chan<- *KillmailWithRef) (sleepy boo
 		return true
 	}
 
-	km, err := Parse(body)
+	// we parse before writing, so we don't store garbage
+	km, err := Parse(body, bobstore.Ref{})
 	if err != nil {
 		log.Printf("zkb.httpWorker: error parsing killmail %v", err)
 		return true
@@ -125,12 +126,9 @@ func pullKillmail(bdb *bobstore.DB, kmQueue chan<- *KillmailWithRef) (sleepy boo
 		return true
 	}
 
-	kmWithRef := &KillmailWithRef{
-		Killmail: km,
-		Ref:      ref,
-	}
+	km.Ref = ref
 
-	kmQueue <- kmWithRef
+	kmQueue <- km
 	log.Printf("received zkillmail and stored as %s", ref)
 
 	return false

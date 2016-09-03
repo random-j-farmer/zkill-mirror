@@ -13,8 +13,9 @@ func TestStoreAndLookup(t *testing.T) {
 
 	km := &zkb.Killmail{
 		KillID: 666,
+		Ref:    bobstore.Ref{Fno: 666, Pos: 0xDEADBEEF},
 	}
-	err := IndexKillmail(bobstore.Ref{Fno: 666, Pos: 0xDEADBEEF}, km)
+	err := IndexKillmail(km)
 	if err != nil {
 		t.Error("StoreKillmail", err)
 	}

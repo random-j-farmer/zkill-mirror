@@ -66,8 +66,8 @@ func d64ID(id uint64) string {
 	return d64.EncodeUInt64(id, 5)
 }
 
-func d64TimeID(dt string, id uint64) string {
-	return strings.Join([]string{d64Time(dt), d64ID(id)}, d64Sep)
+func d64TimeID3(dt string, id1 uint64, id2 uint64, id3 uint64) string {
+	return strings.Join([]string{d64Time(dt), d64ID(id1), d64ID(id2), d64ID(id3)}, d64Sep)
 }
 
 func d64IDTimeID(id uint64, dt string, id2 uint64) string {
@@ -134,13 +134,13 @@ func d64Time(s string) string {
 }
 
 // IndexKillmail indexes a single killmail
-func IndexKillmail(ref bobstore.Ref, km *zkb.Killmail) error {
-	kms := []*zkb.KillmailWithRef{&zkb.KillmailWithRef{Ref: ref, Killmail: km}}
+func IndexKillmail(km *zkb.Killmail) error {
+	kms := []*zkb.Killmail{km}
 	return IndexKillmails(kms)
 }
 
 // IndexKillmails indexes a bunch of killmails
-func IndexKillmails(kms []*zkb.KillmailWithRef) error {
+func IndexKillmails(kms []*zkb.Killmail) error {
 	err := DB.Batch(func(tx *bolt.Tx) error {
 
 		type workitem struct {
@@ -148,25 +148,25 @@ func IndexKillmails(kms []*zkb.KillmailWithRef) error {
 			key    string
 		}
 
-		for _, kmwr := range kms {
-			refBytes, km := []byte(d64Ref(kmwr.Ref)), kmwr.Killmail
+		for _, km := range kms {
+			refBytes := []byte(d64Ref(km.Ref))
 
 			if config.Verbose() {
 				log.Printf("indexing killID %d charID %d corpID %d alliID %d", km.KillID,
-					km.Victim.CharID, km.Victim.CorporationID, km.Victim.AllianceID)
+					km.Victim.CharacterID, km.Victim.CorporationID, km.Victim.AllianceID)
 			}
 
 			work := []workitem{
 				{kmByID, d64ID(km.KillID)},
-				{kmByDate, d64TimeID(km.KillTime, km.KillID)},
+				{kmByDate, d64TimeID3(km.KillTime, km.SolarSystemID, km.RegionID, km.KillID)},
 				{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID)},
-				{kmCharID, d64IDTimeID(km.Victim.CharID, km.KillTime, km.KillID)},
+				{kmCharID, d64IDTimeID(km.Victim.CharacterID, km.KillTime, km.KillID)},
 				{kmCorpID, d64IDTimeID(km.Victim.CorporationID, km.KillTime, km.KillID)},
 				{kmAlliID, d64IDTimeID(km.Victim.AllianceID, km.KillTime, km.KillID)},
 			}
 
 			for _, attacker := range km.Attackers {
-				work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharID, km.KillTime, km.KillID)})
+				work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharacterID, km.KillTime, km.KillID)})
 				work = append(work, workitem{kmCorpID, d64IDTimeID(attacker.CorporationID, km.KillTime, km.KillID)})
 				work = append(work, workitem{kmAlliID, d64IDTimeID(attacker.AllianceID, km.KillTime, km.KillID)})
 			}
@@ -181,7 +181,7 @@ func IndexKillmails(kms []*zkb.KillmailWithRef) error {
 					return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
 				}
 			}
-			log.Printf("indexed %s under pk:%d\n", kmwr.Ref, km.KillID)
+			log.Printf("indexed %s under pk:%d\n", km.Ref, km.KillID)
 		}
 
 		return nil
@@ -280,12 +280,12 @@ func byPrefix(prefix []byte, bucket []byte, limit int) ([]bobstore.Ref, error) {
 }
 
 // IndexWorker does the indexing
-func IndexWorker(kmQueue <-chan *zkb.KillmailWithRef, wg *sync.WaitGroup) {
+func IndexWorker(kmQueue <-chan *zkb.Killmail, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
 
 	for km := range kmQueue {
-		err := IndexKillmail(km.Ref, km.Killmail)
+		err := IndexKillmail(km)
 		if err != nil {
 			log.Printf("db.IndexWorker: error index killmail: %v", err)
 		}

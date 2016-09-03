@@ -22,41 +22,53 @@ type Killmail struct {
 
 	ZKBTotalValue float64
 	ZKBPoints     int
+
+	Position Position
+
+	// actually not present in the killmail
+	// added by the indexing step
+
+	RegionID   uint64
+	RegionName string
+	Ref        bobstore.Ref
 }
 
 // Attacker - an attacker
 type Attacker struct {
-	CharID          uint64
-	CharName        string
+	CharacterID     uint64
+	CharacterName   string
 	CorporationID   uint64
 	CorporationName string
 	AllianceID      uint64
 	AllianceName    string
+	FactionID       uint64
+	FactionName     string
 
 	SecStatus  float64
 	DamageDone float64
+	FinalBlow  bool
 
-	ShipID     uint64
-	ShipName   string
-	WeaponID   uint64
-	WeaponName string
+	ShipTypeID     uint64
+	ShipTypeName   string
+	WeaponTypeID   uint64
+	WeaponTypeName string
 }
 
 // Victim - the victim
 type Victim struct {
-	CharID          uint64
-	CharName        string
+	CharacterID     uint64
+	CharacterName   string
 	CorporationID   uint64
 	CorporationName string
 	AllianceID      uint64
 	AllianceName    string
+	FactionID       uint64
+	FactionName     string
 
 	DamageTaken float64
 
-	ShipID   uint64
-	ShipName string
-
-	Position Position
+	ShipTypeID   uint64
+	ShipTypeName string
 
 	Items []Item
 }
@@ -70,20 +82,16 @@ type Position struct {
 
 // Item - an item that dropped or was destroyed
 type Item struct {
-	ItemID            uint64
-	ItemName          string
+	ItemTypeID        uint64
+	ItemTypeName      string
 	QuantityDropped   int
 	QuantityDestroyed int
-}
-
-// KillmailWithRef - a killmail with associated ref
-type KillmailWithRef struct {
-	*Killmail
-	bobstore.Ref
+	Singleton         int
+	Flag              int
 }
 
 // Parse a json killmail
-func Parse(b []byte) (*Killmail, error) {
+func Parse(b []byte, ref bobstore.Ref) (*Killmail, error) {
 	q, err := jq.Unmarshal(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "jq.New")
@@ -105,36 +113,44 @@ func Parse(b []byte) (*Killmail, error) {
 
 		AttackerCount: kq.Int("attackerCount"),
 
+		Position: Position{
+			X: vq.Float("position", "x"),
+			Y: vq.Float("position", "y"),
+			Z: vq.Float("position", "z"),
+		},
+
 		Victim: Victim{
-			CharID:          vq.UInt64("character", "id"),
-			CharName:        vq.String("character", "name"),
+			CharacterID:     vq.UInt64("character", "id"),
+			CharacterName:   vq.String("character", "name"),
 			CorporationID:   vq.UInt64("corporation", "id"),
 			CorporationName: vq.String("corporation", "name"),
 			AllianceID:      vq.UInt64("alliance", "id"),
 			AllianceName:    vq.String("alliance", "name"),
+			FactionID:       vq.UInt64("faction", "id"),
+			FactionName:     vq.String("faction", "name"),
 
 			DamageTaken: vq.Float("damageDone"),
 
-			ShipID:   vq.UInt64("shipType", "id"),
-			ShipName: vq.String("shipType", "name"),
-
-			Position: Position{
-				X: vq.Float("position", "x"),
-				Y: vq.Float("position", "y"),
-				Z: vq.Float("position", "z"),
-			},
+			ShipTypeID:   vq.UInt64("shipType", "id"),
+			ShipTypeName: vq.String("shipType", "name"),
 		},
+
+		Ref: ref,
 	}
+
+	km.RegionID, km.RegionName = RegionBySolarSystem(km.SolarSystemID)
 
 	items := vq.Slice("items")
 	km.Victim.Items = make([]Item, len(items))
 	for i, jitem := range items {
 		iq := jq.New(jitem)
 		item := &km.Victim.Items[i]
-		item.ItemID = iq.UInt64("itemType", "id")
-		item.ItemName = iq.String("itemType", "name")
+		item.ItemTypeID = iq.UInt64("itemType", "id")
+		item.ItemTypeName = iq.String("itemType", "name")
 		item.QuantityDestroyed = iq.Int("quantityDestroyed")
 		item.QuantityDropped = iq.Int("quantityDropped")
+		item.Flag = iq.Int("flag")
+		item.Singleton = iq.Int("singleton")
 	}
 
 	attackers := kq.Slice("attackers")
@@ -142,20 +158,22 @@ func Parse(b []byte) (*Killmail, error) {
 	for i, jatt := range attackers {
 		aq := jq.New(jatt)
 		a := &km.Attackers[i]
-		a.CharID = aq.UInt64("character", "id")
-		a.CharName = aq.String("character", "name")
+		a.CharacterID = aq.UInt64("character", "id")
+		a.CharacterName = aq.String("character", "name")
 		a.CorporationID = aq.UInt64("corporation", "id")
 		a.CorporationName = aq.String("corporation", "name")
 		a.AllianceID = aq.UInt64("alliance", "id")
 		a.AllianceName = aq.String("alliance", "name")
+		a.FactionID = aq.UInt64("faction", "id")
+		a.FactionName = aq.String("faction", "name")
 
 		a.SecStatus = aq.Float("securityStatus")
 		a.DamageDone = aq.Float("damageDone")
 
-		a.ShipID = aq.UInt64("shipType", "id")
-		a.ShipName = aq.String("shipType", "name")
-		a.WeaponID = aq.UInt64("weaponType", "id")
-		a.WeaponName = aq.String("weaponType", "name")
+		a.ShipTypeID = aq.UInt64("shipType", "id")
+		a.ShipTypeName = aq.String("shipType", "name")
+		a.WeaponTypeID = aq.UInt64("weaponType", "id")
+		a.WeaponTypeName = aq.String("weaponType", "name")
 	}
 
 	return km, nil

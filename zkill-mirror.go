@@ -92,7 +92,7 @@ func serve() {
 	if config.PullEnabled() {
 		var wg sync.WaitGroup
 		stop := make(chan struct{})
-		kmQueue := make(chan *zkb.KillmailWithRef, 1)
+		kmQueue := make(chan *zkb.Killmail, 1)
 
 		go zkb.PullKillmails(blobs.DB, kmQueue, stop, &wg)
 		go db.IndexWorker(kmQueue, &wg)
@@ -138,26 +138,25 @@ func readAndParse(ref bobstore.Ref) (interface{}, error) {
 		return nil, err
 	}
 
-	kmr := &zkb.KillmailWithRef{Ref: ref}
-	kmr.Killmail, err = zkb.Parse(b)
+	km, err := zkb.Parse(b, ref)
 	if err != nil {
 		return nil, errors.Wrapf(err, "zkb.Parse %s", ref)
 	}
 
-	return kmr, nil
+	return km, nil
 }
 
 func indexKillmails(kmchan chan *parallel.Output) []error {
 	groupSize := config.ReindexBatchSize()
 	errs := make([]error, 0, groupSize)
-	killmails := make([]*zkb.KillmailWithRef, 0, groupSize)
+	killmails := make([]*zkb.Killmail, 0, groupSize)
 	for out := range kmchan {
 		if out.Err != nil {
 			errs = append(errs, out.Err)
 		} else {
-			kmr := out.Value.(*zkb.KillmailWithRef)
+			km := out.Value.(*zkb.Killmail)
 			// log.Printf("indexKillmails kmr: %v %#v", kmr.Ref, kmr.Killmail)
-			killmails = append(killmails, kmr)
+			killmails = append(killmails, km)
 		}
 
 		if len(killmails) >= groupSize {

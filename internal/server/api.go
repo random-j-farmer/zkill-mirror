@@ -14,6 +14,7 @@ import (
 	"github.com/random-j-farmer/zkill-mirror/internal/blobs"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
 	"github.com/random-j-farmer/zkill-mirror/internal/db"
+	"github.com/random-j-farmer/zkill-mirror/internal/zkb"
 )
 
 const defaultLimit = 100
@@ -84,8 +85,18 @@ func apiByKillID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 		return errors.Wrap(err, "bobstore.read")
 	}
 
+	parsed, err := zkb.Parse(b, ref)
+	if err != nil {
+		return errors.Wrapf(err, "zkb.Parse %s", ref)
+	}
+
+	marsh, err := json.Marshal(parsed)
+	if err != nil {
+		return errors.Wrapf(err, "json.Marshal %s", ref)
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, err = w.Write(b)
+	_, err = w.Write(marsh)
 	if err != nil {
 		return errors.Wrap(err, "response.write")
 	}
@@ -162,14 +173,20 @@ func apiHot(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 			return errors.Wrap(err, "json.Marshal")
 		}
 
-		// append a , or ] so we only have to do one write ...
-		if i == size-1 {
-			b = append(b, ']')
-		} else {
-			b = append(b, ',')
+		_, err = w.Write(b)
+		if err != nil {
+			return errors.Wrap(err, "response.write")
 		}
 
-		_, err = w.Write(b)
+		// append a , or ] so we only have to do one write ...
+		var sep []byte
+		if i == size-1 {
+			sep = []byte{']'}
+		} else {
+			sep = []byte{','}
+		}
+
+		_, err = w.Write(sep)
 		if err != nil {
 			return errors.Wrap(err, "response.write")
 		}
@@ -208,20 +225,34 @@ func apiWriteResponse(w http.ResponseWriter, r *http.Request, refs []bobstore.Re
 			return errors.Wrapf(err, "bobstore.Read %s", ref)
 		}
 
-		if len(b) == cap(b) {
-			logRequestf(r, "warning: at cap for: %s - inefficient append", ref)
-		}
-		// append a , or ] so we only have to do one write ...
-		if i == size-1 {
-			b = append(b, ']')
-		} else {
-			b = append(b, ',')
+		parsed, err := zkb.Parse(b, ref)
+		if err != nil {
+			return errors.Wrapf(err, "zkb.Parse %s", ref)
 		}
 
-		_, err = w.Write(b)
+		marsh, err := json.Marshal(parsed)
+		if err != nil {
+			return errors.Wrapf(err, "json.Marshal %s", ref)
+		}
+
+		_, err = w.Write(marsh)
 		if err != nil {
 			return errors.Wrap(err, "response.write")
 		}
+
+		// append a , or ] so we only have to do one write ...
+		var sep []byte
+		if i == size-1 {
+			sep = []byte{']'}
+		} else {
+			sep = []byte{','}
+		}
+
+		_, err = w.Write(sep)
+		if err != nil {
+			return errors.Wrap(err, "response.write")
+		}
+
 	}
 	if size == 0 {
 		_, err := w.Write([]byte{']'})
@@ -277,7 +308,7 @@ func unmarshalQuery(url string) (*apiQuery, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
 			}
-		case "systemID":
+		case "solarSystemID":
 			q.SystemID, err = str2id(parts[i+1])
 			if err != nil {
 				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])

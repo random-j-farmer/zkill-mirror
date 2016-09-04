@@ -1,2 +1,0 @@
-(C) api: zkill urls
-(C) api: zkill results (map key names)

@@ -179,7 +179,7 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 
 			work := []workitem{
 				{kmByID, d64ID(km.KillID), refStr},
-				{kmByDate, d64TimeID(km.KillTime, km.KillID), d64Ref(km.Ref, km.RegionID, km.SolarSystemID, uint64(km.ZKBTotalValue))},
+				{kmByDate, d64TimeID(km.KillTime, km.KillID), d64Ref(km.Ref, km.RegionID, km.SolarSystemID, uint64(km.ZKB.TotalValue))},
 				{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID), refStr},
 				{kmByRegion, d64IDTimeID(km.RegionID, km.KillTime, km.KillID), refStr},
 				{kmCharID, d64IDTimeID(km.Victim.CharacterID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CharacterID)},

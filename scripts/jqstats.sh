@@ -1,3 +1,3 @@
 #! /bin/bash
-# victim stats
-jq '.[].package.killmail | {"killid": .killID, "killTime": .killTime, "system": .solarSystem.name, "pilot": .victim.character.name, "id": .victim.character.id, "corp":  .victim.corporation.name, "corpid": .victim.corporation.id, "alliance": .victim.alliance.name , "allid": .victim.alliance.id, "ship": .victim.shipType.name}' 
+# victim stats - zkillboard returns
+jq '.[] | {"killid": .killID, "killTime": .killTime, "system": .solarSystemName, "region": .regionName, "pilot": .victim.characterName, "id": .victim.characterID, "corp":  .victim.corporationName, "corpid": .victim.corporationID, "alliance": .victim.allianceName , "allid": .victim.allianceID, "ship": .victim.shipTypeName}' 

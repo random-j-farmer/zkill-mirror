@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"sort"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
+	"github.com/random-j-farmer/d64"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
 )
 
@@ -64,6 +67,96 @@ func ByRegionID(regionID uint64, limit int) ([]bobstore.Ref, error) {
 	prefix := []byte(fmt.Sprintf("%s%s", d64ID(regionID), d64Sep))
 
 	return byPrefix(prefix, kmByRegion, limit)
+}
+
+// SystemStat is a statistics returned by Hot
+type SystemStat struct {
+	RegionID      uint64
+	SolarSystemID uint64
+	Kills         int64
+	RegionKills   int64
+	ISK           int64
+	RegionISK     int64
+}
+
+// to implement sort.Interface on ...
+type systemStats []*SystemStat
+
+func (st *systemStats) Len() int {
+	return len(*st)
+}
+
+func (st *systemStats) Less(i, j int) bool {
+	if (*st)[i].Kills == (*st)[j].Kills {
+		return (*st)[i].ISK > (*st)[j].ISK
+	}
+	return (*st)[i].Kills > (*st)[j].Kills
+}
+
+func (st *systemStats) Swap(i, j int) {
+	(*st)[i], (*st)[j] = (*st)[j], (*st)[i]
+}
+
+// Hot returns the hot systems in the given period
+func Hot(d time.Duration) ([]*SystemStat, error) {
+	now := time.Now().UTC()
+	end := now.Add(-d)
+
+	endBytes := []byte(fmt.Sprintf("%s%s", d64TimeForTime(end), d64Sep))
+
+	var regionBySystem = make(map[uint64]uint64)
+	var killsByRegion = make(map[uint64]int64)
+	var killsBySystem = make(map[uint64]int64)
+	var iskByRegion = make(map[uint64]int64)
+	var iskBySystem = make(map[uint64]int64)
+	var cnt int
+
+	err := DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(kmByDate)
+
+		c := b.Cursor()
+		k, v := c.First()
+		for k != nil && bytes.Compare(k, endBytes) < 0 {
+			parts := bytes.Split(v, []byte(d64Sep))
+			reg, _ := d64.DecodeUInt64(string(parts[1]))
+			sys, _ := d64.DecodeUInt64(string(parts[2]))
+			isk, _ := d64.DecodeUInt64(string(parts[3]))
+
+			regionBySystem[sys] = reg
+			killsByRegion[reg] = killsByRegion[reg] + 1
+			killsBySystem[sys] = killsBySystem[sys] + 1
+			iskByRegion[reg] = iskByRegion[reg] + int64(isk)
+			iskBySystem[sys] = iskBySystem[sys] + int64(isk)
+
+			cnt++
+
+			k, v = c.Next()
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "bolt.View")
+	}
+
+	if config.Verbose() {
+		log.Printf("hot %v: scanned %d records", d, cnt)
+	}
+
+	stats := systemStats(make([]*SystemStat, 0, len(killsBySystem)))
+	for sysid, syskills := range killsBySystem {
+		regid := regionBySystem[sysid]
+		stats = append(stats, &SystemStat{
+			RegionID:      regid,
+			SolarSystemID: sysid,
+			Kills:         syskills,
+			RegionKills:   killsByRegion[regid],
+			ISK:           iskBySystem[sysid],
+			RegionISK:     iskByRegion[regid],
+		})
+	}
+	sort.Sort(&stats)
+
+	return stats, nil
 }
 
 // Newest returns the newest limit killmail refs

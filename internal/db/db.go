@@ -145,7 +145,11 @@ func d64Time(s string) string {
 		return d64.EncodeUInt64(0, 6)
 	}
 
-	seconds := d64Epoch - uint64(dt.UTC().Unix())
+	return d64TimeForTime(dt.UTC())
+}
+
+func d64TimeForTime(t time.Time) string {
+	seconds := d64Epoch - uint64(t.Unix())
 	return d64.EncodeUInt64(seconds, 6)
 }
 
@@ -175,7 +179,7 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 
 			work := []workitem{
 				{kmByID, d64ID(km.KillID), refStr},
-				{kmByDate, d64TimeID(km.KillTime, km.KillID), d64Ref(km.Ref, km.RegionID, km.SolarSystemID)},
+				{kmByDate, d64TimeID(km.KillTime, km.KillID), d64Ref(km.Ref, km.RegionID, km.SolarSystemID, uint64(km.ZKBTotalValue))},
 				{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID), refStr},
 				{kmByRegion, d64IDTimeID(km.RegionID, km.KillTime, km.KillID), refStr},
 				{kmCharID, d64IDTimeID(km.Victim.CharacterID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CharacterID)},

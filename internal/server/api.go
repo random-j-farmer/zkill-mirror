@@ -1,11 +1,13 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
@@ -24,6 +26,7 @@ type apiQuery struct {
 	AllianceID    uint64
 	SystemID      uint64
 	RegionID      uint64
+	Hot           time.Duration
 	Limit         int
 }
 
@@ -52,6 +55,9 @@ func apiHandler(w http.ResponseWriter, r *http.Request, url string) {
 
 	case q.RegionID > 0:
 		err = apiByRegionID(w, r, q)
+
+	case q.Hot > 0:
+		err = apiHot(w, r, q)
 
 	default:
 		logRequestf(r, "hmmmm ... maybe you would like all the newest kills?")
@@ -135,6 +141,47 @@ func apiByRegionID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 
 	logRequestf(r, "apiByRegionID: %d results", len(refs))
 	return apiWriteResponse(w, r, refs)
+}
+
+func apiHot(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
+	stats, err := db.Hot(q.Hot)
+	if err != nil {
+		return errors.Wrap(err, "db.Hot")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, err = w.Write([]byte{'['})
+	if err != nil {
+		return errors.Wrap(err, "response.Write")
+	}
+
+	size := len(stats)
+	for i, stat := range stats {
+		b, err := json.Marshal(stat)
+		if err != nil {
+			return errors.Wrap(err, "json.Marshal")
+		}
+
+		// append a , or ] so we only have to do one write ...
+		if i == size-1 {
+			b = append(b, ']')
+		} else {
+			b = append(b, ',')
+		}
+
+		_, err = w.Write(b)
+		if err != nil {
+			return errors.Wrap(err, "response.write")
+		}
+	}
+	if size == 0 {
+		_, err := w.Write([]byte{']'})
+		if err != nil {
+			return errors.Wrap(err, "response.Write")
+		}
+	}
+
+	return nil
 }
 
 func apiNewest(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -239,6 +286,11 @@ func unmarshalQuery(url string) (*apiQuery, error) {
 			q.RegionID, err = str2id(parts[i+1])
 			if err != nil {
 				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		case "hot":
+			q.Hot, err = time.ParseDuration(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "time.ParseDuration %s", parts[i])
 			}
 		case "limit":
 			q.Limit, err = strconv.Atoi(parts[i+1])

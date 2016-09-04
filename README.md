@@ -1,13 +1,50 @@
 ZKillboard Mirror
 =================
 
+Mirrors zkillboard data by using the pull api.
+
+Implements limited zkillboard-like json api (see example scripts).
+
+Installation
+------------
+
+You need Go installed.  I use 1.7, it used to work with 1.6.
+
+    # install & compile
+    go get -v github.com/random-j-farmer/zkill-mirror
+
+    cd DIR_FOR_YOUDATE  # around 300MB per week
+    zkill-mirror serve  # i do this in screen, or in a docker container
+
+Updating
+--------
+
+After updating to a new version, you usually have to reindex the stored killmails.
+On my server, this takes about one minute per weeks worth of killmails.
+This is done like so:
+
+    # install & compile
+    go get -v -u github.com/random-j-farmer/zkill-mirror
+    # kill old process, update to new binary
+    kill WHATEVER_THE_PID_IS
+
+    rm -f zkill-mirror.bolt  # delete the bolt db
+    zkill-mirror reindex     # create new bolt db with current index scheme
+    zkill-mirror serve       # profit
+
+This might become automated at some point, or the indexing scheme might become
+more stable.  In the near future, my #1 goal is to reduce the db/index size,
+so it is not going to be stable.
+
 Development
 ===========
 
 Additional packages:
 
     # for live reloading while developing
-    go get github.com/codegangsta/gin
+    # go get github.com/codegangsta/gin
+    # my fork has a patch merged in for build tags support
+    go get github.com/random-j-farmer/gin
 
     # to compile assets (static files, templates) into the appropriate
     get github.com/jteeuwen/go-bindata/...
@@ -18,7 +55,7 @@ Additional packages:
 
 To run the server with gin:
 
-    ZKM_PORT=8081 ZKM_VERBOSE=true ZKM_CACHE_TEMPLATES=false gin -p 8080 -a 8081 run
+    ZKM_PORT=8081 ZKM_VERBOSE=true ZKM_CACHE_TEMPLATES=false gin --tags dev -p 8080 -a 8081 run
 
 Or create a custom config file in ~/.ZKILL-MIRROR/, this overrides the
 example config in the distribution.

@@ -1,8 +1,9 @@
-package zkb
+package mapdata
 
 // RegionBySolarSystem gives region information by solar system
 func RegionBySolarSystem(solarSystemID uint64) (regionID uint64, regionName string) {
-	regionID = regionIDBySystemID[solarSystemID]
+	sysdata := SolarSystemByID(solarSystemID)
+	regionID = sysdata.RegionID
 	regionName = regionNameByID[regionID]
 	// named return
 	return

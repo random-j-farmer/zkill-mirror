@@ -142,6 +142,9 @@ func readAndParse(ref bobstore.Ref) (interface{}, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "zkb.Parse %s", ref)
 	}
+	// if config.Verbose() {
+	// 	log.Printf("parsed killmail: %#v", km)
+	// }
 
 	return km, nil
 }

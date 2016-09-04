@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
 	"github.com/random-j-farmer/jq"
+	"github.com/random-j-farmer/zkill-mirror/internal/mapdata"
 )
 
 // Killmail contains the data from a eve json killmail
@@ -108,8 +109,8 @@ func Parse(b []byte, ref bobstore.Ref) (*Killmail, error) {
 
 		WarID: kq.UInt64("warID"),
 
-		ZKBTotalValue: q.Float("zkb", "totalValue"),
-		ZKBPoints:     q.Int("zkb", "points"),
+		ZKBTotalValue: q.Float("package", "zkb", "totalValue"),
+		ZKBPoints:     q.Int("package", "zkb", "points"),
 
 		AttackerCount: kq.Int("attackerCount"),
 
@@ -138,7 +139,7 @@ func Parse(b []byte, ref bobstore.Ref) (*Killmail, error) {
 		Ref: ref,
 	}
 
-	km.RegionID, km.RegionName = RegionBySolarSystem(km.SolarSystemID)
+	km.RegionID, km.RegionName = mapdata.RegionBySolarSystem(km.SolarSystemID)
 
 	items := vq.Slice("items")
 	km.Victim.Items = make([]Item, len(items))

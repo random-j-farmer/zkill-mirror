@@ -12,6 +12,7 @@ import (
 	"github.com/random-j-farmer/bobstore"
 	"github.com/random-j-farmer/d64"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
+	"github.com/random-j-farmer/zkill-mirror/internal/mapdata"
 )
 
 // ByKillID queries the DB by killID
@@ -71,12 +72,15 @@ func ByRegionID(regionID uint64, limit int) ([]bobstore.Ref, error) {
 
 // SystemStat is a statistics returned by Hot
 type SystemStat struct {
-	RegionID      uint64
-	SolarSystemID uint64
-	Kills         int64
-	RegionKills   int64
-	ISK           int64
-	RegionISK     int64
+	RegionID        uint64  `json:"regionID"`
+	RegionName      string  `json:"regionName"`
+	SolarSystemID   uint64  `json:"solarSystemID"`
+	SolarSystemName string  `json:"solarSystemName"`
+	Security        float32 `json:"security"`
+	Kills           int64   `json:"kills"`
+	RegionKills     int64   `json:"regionKills"`
+	ISK             int64   `json:"totalValue"`
+	RegionISK       int64   `json:"regionTotalValue"`
 }
 
 // to implement sort.Interface on ...
@@ -104,7 +108,6 @@ func Hot(d time.Duration) ([]*SystemStat, error) {
 
 	endBytes := []byte(fmt.Sprintf("%s%s", d64TimeForTime(end), d64Sep))
 
-	var regionBySystem = make(map[uint64]uint64)
 	var killsByRegion = make(map[uint64]int64)
 	var killsBySystem = make(map[uint64]int64)
 	var iskByRegion = make(map[uint64]int64)
@@ -122,7 +125,6 @@ func Hot(d time.Duration) ([]*SystemStat, error) {
 			sys, _ := d64.DecodeUInt64(string(parts[2]))
 			isk, _ := d64.DecodeUInt64(string(parts[3]))
 
-			regionBySystem[sys] = reg
 			killsByRegion[reg] = killsByRegion[reg] + 1
 			killsBySystem[sys] = killsBySystem[sys] + 1
 			iskByRegion[reg] = iskByRegion[reg] + int64(isk)
@@ -144,14 +146,19 @@ func Hot(d time.Duration) ([]*SystemStat, error) {
 
 	stats := systemStats(make([]*SystemStat, 0, len(killsBySystem)))
 	for sysid, syskills := range killsBySystem {
-		regid := regionBySystem[sysid]
+		sd := mapdata.SolarSystemByID(sysid)
+		regid, rname := mapdata.RegionBySolarSystem(sysid)
+
 		stats = append(stats, &SystemStat{
-			RegionID:      regid,
-			SolarSystemID: sysid,
-			Kills:         syskills,
-			RegionKills:   killsByRegion[regid],
-			ISK:           iskBySystem[sysid],
-			RegionISK:     iskByRegion[regid],
+			RegionID:        regid,
+			RegionName:      rname,
+			SolarSystemID:   sysid,
+			SolarSystemName: sd.SolarSystemName,
+			Security:        sd.Security,
+			Kills:           syskills,
+			RegionKills:     killsByRegion[regid],
+			ISK:             iskBySystem[sysid],
+			RegionISK:       iskByRegion[regid],
 		})
 	}
 	sort.Sort(&stats)

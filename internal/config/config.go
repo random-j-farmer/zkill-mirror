@@ -40,6 +40,11 @@ func BobsName() string {
 	return viper.GetString("bobs_name")
 }
 
+// BobsCodec is the type of compression used. GZIP or SNAP
+func BobsCodec() string {
+	return viper.GetString("bobs_codec")
+}
+
 // ReindexBatchSize number of killmails to index in one transaction
 func ReindexBatchSize() int {
 	return viper.GetInt("reindex_batch_size")
@@ -89,6 +94,7 @@ func init() {
 	viper.SetDefault("db_name", "zkill-mirror.bolt")
 	viper.SetDefault("db_nosync", false)
 	viper.SetDefault("bobs_name", "zkill-mirror.bobs")
+	viper.SetDefault("bobs_codec", "SNAP")
 	viper.SetDefault("reindex_batch_size", 100)
 	viper.SetDefault("reindex_workers", 4)
 
@@ -123,6 +129,7 @@ func init() {
 		log.Println("db_name:\t", DBName())
 		log.Println("db_nosync:\t", DBNoSync())
 		log.Println("bobs_name:\t", BobsName())
+		log.Println("bobs_codec:\t", BobsCodec())
 		log.Println()
 		log.Println("port", Port())
 		log.Println("cache_templates", CacheTemplates())

@@ -1,2 +1,2 @@
 #! /bin/bash
-http http://localhost:3000/api/regionID/10000046/
+http http://localhost:${ZKM_PORT:-8080}/api/regionID/10000046/

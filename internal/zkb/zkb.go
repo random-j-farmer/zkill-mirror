@@ -120,7 +120,7 @@ func pullKillmail(bdb *bobstore.DB, kmQueue chan<- *Killmail) (sleepy bool) {
 		return true
 	}
 
-	ref, err := bdb.WriteWithCodec(body, bobstore.GZIPCodec())
+	ref, err := bdb.WriteWithCodec(body, bobstore.CodecFor(config.BobsCodec()))
 	if err != nil {
 		log.Printf("zkb.httpWorker: error storing to blob store: %v", err)
 		return true

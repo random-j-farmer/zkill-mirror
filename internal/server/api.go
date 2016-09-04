@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,13 +14,17 @@ import (
 	"github.com/random-j-farmer/zkill-mirror/internal/db"
 )
 
-const maxReturns = 1000
+const defaultLimit = 100
+const maxLimit = 1000
 
 type apiQuery struct {
 	KillID        uint64
 	CharacterID   uint64
 	CorporationID uint64
 	AllianceID    uint64
+	SystemID      uint64
+	RegionID      uint64
+	Limit         int
 }
 
 func apiHandler(w http.ResponseWriter, r *http.Request, url string) {
@@ -41,6 +46,12 @@ func apiHandler(w http.ResponseWriter, r *http.Request, url string) {
 
 	case q.AllianceID > 0:
 		err = apiByAllianceID(w, r, q)
+
+	case q.SystemID > 0:
+		err = apiBySystemID(w, r, q)
+
+	case q.RegionID > 0:
+		err = apiByRegionID(w, r, q)
 
 	default:
 		logRequestf(r, "hmmmm ... maybe you would like all the newest kills?")
@@ -77,7 +88,7 @@ func apiByKillID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 }
 
 func apiByCharacterID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
-	refs, err := db.ByCharacterID(q.CharacterID, maxReturns)
+	refs, err := db.ByCharacterID(q.CharacterID, q.Limit)
 	if err != nil {
 		return errors.Wrap(err, "db.ByCharacterID")
 	}
@@ -87,7 +98,7 @@ func apiByCharacterID(w http.ResponseWriter, r *http.Request, q *apiQuery) error
 }
 
 func apiByCorporationID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
-	refs, err := db.ByCorporationID(q.CorporationID, maxReturns)
+	refs, err := db.ByCorporationID(q.CorporationID, q.Limit)
 	if err != nil {
 		return errors.Wrap(err, "db.ByCorporationID")
 	}
@@ -97,7 +108,7 @@ func apiByCorporationID(w http.ResponseWriter, r *http.Request, q *apiQuery) err
 }
 
 func apiByAllianceID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
-	refs, err := db.ByAllianceID(q.AllianceID, maxReturns)
+	refs, err := db.ByAllianceID(q.AllianceID, q.Limit)
 	if err != nil {
 		return errors.Wrap(err, "db.ByAllianceID")
 	}
@@ -106,8 +117,28 @@ func apiByAllianceID(w http.ResponseWriter, r *http.Request, q *apiQuery) error 
 	return apiWriteResponse(w, r, refs)
 }
 
+func apiBySystemID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
+	refs, err := db.BySystemID(q.SystemID, q.Limit)
+	if err != nil {
+		return errors.Wrap(err, "db.BySystemID")
+	}
+
+	logRequestf(r, "apiBySystemID: %d results", len(refs))
+	return apiWriteResponse(w, r, refs)
+}
+
+func apiByRegionID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
+	refs, err := db.ByRegionID(q.RegionID, q.Limit)
+	if err != nil {
+		return errors.Wrap(err, "db.ByRegionID")
+	}
+
+	logRequestf(r, "apiByRegionID: %d results", len(refs))
+	return apiWriteResponse(w, r, refs)
+}
+
 func apiNewest(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
-	refs, err := db.Newest(maxReturns)
+	refs, err := db.Newest(q.Limit)
 	if err != nil {
 		return errors.Wrap(err, "db.Newest")
 	}
@@ -173,7 +204,7 @@ func unmarshalQuery(url string) (*apiQuery, error) {
 		}
 	}
 
-	q := &apiQuery{}
+	q := &apiQuery{Limit: defaultLimit}
 
 	var err error
 
@@ -198,6 +229,25 @@ func unmarshalQuery(url string) (*apiQuery, error) {
 			q.AllianceID, err = str2id(parts[i+1])
 			if err != nil {
 				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		case "systemID":
+			q.SystemID, err = str2id(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		case "regionID":
+			q.RegionID, err = str2id(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+		case "limit":
+			q.Limit, err = strconv.Atoi(parts[i+1])
+			if err != nil {
+				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
+			}
+			if q.Limit > maxLimit {
+				log.Printf("limit over maxLimit, using maxLimit=%d", maxLimit)
+				q.Limit = maxLimit
 			}
 		default:
 			return nil, fmt.Errorf("invalid query key: %s", parts[i])

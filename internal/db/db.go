@@ -2,7 +2,6 @@
 package db
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"strings"
@@ -23,6 +22,7 @@ var DB *bolt.DB
 var kmByID = []byte("kmByID")
 var kmByDate = []byte("kmByDate")
 var kmBySystem = []byte("kmBySystem")
+var kmByRegion = []byte("kmByRegion")
 var kmCharID = []byte("kmCharID")
 var kmCorpID = []byte("kmCharID")
 var kmAlliID = []byte("kmAlliID")
@@ -37,7 +37,7 @@ func InitDB(dbname string, noSync bool) {
 	DB.NoSync = noSync
 
 	DB.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range [][]byte{kmByID, kmByDate, kmBySystem, kmCharID, kmCorpID, kmAlliID} {
+		for _, bucket := range [][]byte{kmByID, kmByDate, kmBySystem, kmByRegion, kmCharID, kmCorpID, kmAlliID} {
 			_, err2 := tx.CreateBucketIfNotExists(bucket)
 			if err2 != nil {
 				return err2
@@ -56,6 +56,7 @@ func CloseDB() error {
 }
 
 const d64Sep = "|"
+const d64RefSep = ":"
 
 // ids seem to have 8 characters.
 // for 9 characters, they encode like this:
@@ -66,25 +67,40 @@ func d64ID(id uint64) string {
 	return d64.EncodeUInt64(id, 5)
 }
 
-func d64TimeID3(dt string, id1 uint64, id2 uint64, id3 uint64) string {
-	return strings.Join([]string{d64Time(dt), d64ID(id1), d64ID(id2), d64ID(id3)}, d64Sep)
+func d64TimeID(dt string, id1 uint64) string {
+	return strings.Join([]string{d64Time(dt), d64ID(id1)}, d64Sep)
 }
 
 func d64IDTimeID(id uint64, dt string, id2 uint64) string {
 	return strings.Join([]string{d64ID(id), d64Time(dt), d64ID(id2)}, d64Sep)
 }
 
-func d64Ref(ref bobstore.Ref) string {
-	return strings.Join([]string{
-		d64.EncodeUInt64(uint64(ref.Fno), 3),
-		d64.EncodeUInt64(uint64(ref.Pos), 5),
-	}, d64Sep)
+// d64Ref encodes a ref.  note that these are not indexed, so we do not
+// have to worry about maintaining sort order by leading 0 digits
+func d64Ref(ref bobstore.Ref, ids ...uint64) string {
+	strs := make([]string, 1+len(ids))
+	strs[0] = strings.Join([]string{
+		d64.EncodeUInt64(uint64(ref.Fno), 0),
+		d64.EncodeUInt64(uint64(ref.Pos), 0),
+	}, d64RefSep)
+
+	for i, id := range ids {
+		strs[i+1] = d64.EncodeUInt64(id, 0)
+	}
+
+	return strings.Join(strs, d64Sep)
 }
 
+// decode an encoded ref potentially followed by encoded ids
 func dec64Ref(s string) (bobstore.Ref, error) {
 	var ref bobstore.Ref
 
 	parts := strings.Split(s, d64Sep)
+	if len(parts) < 1 {
+		return ref, fmt.Errorf("not a d64Ref: %s %d", s, len(parts))
+	}
+
+	parts = strings.Split(parts[0], d64RefSep)
 	if len(parts) != 2 {
 		return ref, fmt.Errorf("not a d64Ref: %s %d", s, len(parts))
 	}
@@ -146,10 +162,11 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 		type workitem struct {
 			bucket []byte
 			key    string
+			val    string
 		}
 
 		for _, km := range kms {
-			refBytes := []byte(d64Ref(km.Ref))
+			refStr := d64Ref(km.Ref)
 
 			if config.Verbose() {
 				log.Printf("indexing killID %d charID %d corpID %d alliID %d", km.KillID,
@@ -157,23 +174,24 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 			}
 
 			work := []workitem{
-				{kmByID, d64ID(km.KillID)},
-				{kmByDate, d64TimeID3(km.KillTime, km.SolarSystemID, km.RegionID, km.KillID)},
-				{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID)},
-				{kmCharID, d64IDTimeID(km.Victim.CharacterID, km.KillTime, km.KillID)},
-				{kmCorpID, d64IDTimeID(km.Victim.CorporationID, km.KillTime, km.KillID)},
-				{kmAlliID, d64IDTimeID(km.Victim.AllianceID, km.KillTime, km.KillID)},
+				{kmByID, d64ID(km.KillID), refStr},
+				{kmByDate, d64TimeID(km.KillTime, km.KillID), d64Ref(km.Ref, km.RegionID, km.SolarSystemID)},
+				{kmBySystem, d64IDTimeID(km.SolarSystemID, km.KillTime, km.KillID), refStr},
+				{kmByRegion, d64IDTimeID(km.RegionID, km.KillTime, km.KillID), refStr},
+				{kmCharID, d64IDTimeID(km.Victim.CharacterID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CharacterID)},
+				{kmCorpID, d64IDTimeID(km.Victim.CorporationID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CorporationID)},
+				{kmAlliID, d64IDTimeID(km.Victim.AllianceID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.AllianceID)},
 			}
 
 			for _, attacker := range km.Attackers {
-				work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharacterID, km.KillTime, km.KillID)})
-				work = append(work, workitem{kmCorpID, d64IDTimeID(attacker.CorporationID, km.KillTime, km.KillID)})
-				work = append(work, workitem{kmAlliID, d64IDTimeID(attacker.AllianceID, km.KillTime, km.KillID)})
+				work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharacterID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CharacterID)})
+				work = append(work, workitem{kmCorpID, d64IDTimeID(attacker.CorporationID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CorporationID)})
+				work = append(work, workitem{kmAlliID, d64IDTimeID(attacker.AllianceID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.AllianceID)})
 			}
 			for _, item := range work {
 				b := tx.Bucket(item.bucket)
 
-				err := b.Put([]byte(item.key), refBytes)
+				err := b.Put([]byte(item.key), []byte(item.val))
 				if config.Verbose() {
 					log.Printf("indexing %s %s", item.bucket, item.key)
 				}
@@ -190,93 +208,6 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 		return errors.Wrap(err, "bolt.Batch")
 	}
 	return nil
-}
-
-// ByKillID queries the DB by killID
-func ByKillID(killID uint64) (bobstore.Ref, error) {
-	var ref bobstore.Ref
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(kmByID)
-		k := d64ID(killID)
-		refStr := string(b.Get([]byte(k)))
-		if refStr == "" {
-			return fmt.Errorf("no such key: %s", k)
-		}
-		var err error
-		ref, err = dec64Ref(refStr)
-		return err
-	})
-	if err != nil {
-		return ref, errors.Wrap(err, "bolt.View")
-	}
-	return ref, nil
-}
-
-// ByCharacterID gives the latest limit killmails of the character
-func ByCharacterID(characterID uint64, limit int) ([]bobstore.Ref, error) {
-	prefix := []byte(fmt.Sprintf("%s%s", d64ID(characterID), d64Sep))
-
-	return byPrefix(prefix, kmCharID, limit)
-}
-
-// ByCorporationID gives the latest limit killmails of the Corporation
-func ByCorporationID(corpID uint64, limit int) ([]bobstore.Ref, error) {
-	prefix := []byte(fmt.Sprintf("%s%s", d64ID(corpID), d64Sep))
-
-	return byPrefix(prefix, kmCorpID, limit)
-}
-
-// ByAllianceID gives the latest limit killmails of the alliance
-func ByAllianceID(allianceID uint64, limit int) ([]bobstore.Ref, error) {
-	prefix := []byte(fmt.Sprintf("%s%s", d64ID(allianceID), d64Sep))
-
-	return byPrefix(prefix, kmAlliID, limit)
-}
-
-// Newest returns the newest limit killmail refs
-func Newest(limit int) ([]bobstore.Ref, error) {
-	return byPrefix([]byte(""), kmByDate, limit)
-}
-
-// byPrefix returns killmails by bucket and prefix
-func byPrefix(prefix []byte, bucket []byte, limit int) ([]bobstore.Ref, error) {
-	refs := make([]bobstore.Ref, 0, limit)
-
-	if config.Verbose() {
-		log.Printf("scanning for %s by prefix %s", bucket, prefix)
-	}
-
-	err := DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucket)
-
-		c := b.Cursor()
-		k, v := c.Seek(prefix)
-		for i := 0; i < limit && k != nil; i++ {
-			var ref bobstore.Ref
-
-			if !bytes.HasPrefix(k, prefix) {
-				break
-			}
-
-			ref, err := dec64Ref(string(v))
-			if err != nil {
-				return err
-			}
-			refs = append(refs, ref)
-
-			k, v = c.Next()
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "bolt.View")
-	}
-
-	if config.Verbose() {
-		log.Printf("scanning for %s by prefix %s: found %d", bucket, prefix, len(refs))
-	}
-
-	return refs, nil
 }
 
 // IndexWorker does the indexing

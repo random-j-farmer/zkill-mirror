@@ -6,6 +6,7 @@ VERSION=0.1
 
 default: build tag_latest
     
+# GOOS=linux GOARCH=amd64
 build:
 	CGO_ENABLED=0 go build -o zkill-mirror
 	docker build -t $(AUTHOR)/$(NAME):$(VERSION) .

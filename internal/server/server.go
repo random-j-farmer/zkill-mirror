@@ -15,8 +15,7 @@ import (
 )
 
 // Serve the web application.
-// Does not return
-func Serve() {
+func Serve() error {
 	if config.CacheTemplates() {
 		mustParseTemplates()
 	}
@@ -24,13 +23,13 @@ func Serve() {
 	http.HandleFunc("/api/", makeHandler(regexp.MustCompile("^/api/(.*)"), apiHandler))
 	fs := &assetfs.AssetFS{Asset: assets.Asset, AssetDir: assets.AssetDir, AssetInfo: assets.AssetInfo, Prefix: ""}
 	http.Handle("/static/", http.FileServer(fs))
-	listenAndServe()
+	return listenAndServe()
 }
 
-func listenAndServe() {
+func listenAndServe() error {
 	on := fmt.Sprintf(":%d", config.Port())
 	log.Printf("Serving on %s", on)
-	http.ListenAndServe(on, nil)
+	return http.ListenAndServe(on, nil)
 }
 
 var cachedTemplates *template.Template

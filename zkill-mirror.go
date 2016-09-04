@@ -101,14 +101,16 @@ func serve() {
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
 		go func() {
-			<-sigChan
+			sig := <-sigChan
+			log.Printf("signal caught: %v", sig)
 			cleanup(stop, &wg)
 			os.Exit(0)
 		}()
 	}
 
 	// http server is not stopped - only worker goroutines and db handle
-	server.Serve()
+	err := server.Serve()
+	log.Printf("server.Serve(): %v", err)
 }
 
 // reindex the database

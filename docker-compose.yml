@@ -1,0 +1,7 @@
+version: '2'
+services:
+    zkill-mirror:
+        image: rjfarmer/zkill-mirror:0.1
+        restart: unless_stopped
+        volumes:
+            - /data/zkill-mirror:/srv

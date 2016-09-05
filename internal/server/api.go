@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"time"
@@ -27,15 +28,30 @@ type apiQuery struct {
 	AllianceID    uint64
 	SystemID      uint64
 	RegionID      uint64
-	Hot           time.Duration
+	Activity      time.Duration
 	Limit         int
+
+	accept string // json or html
 }
 
 func apiHandler(w http.ResponseWriter, r *http.Request, url string) {
+
+	if config.Debug() {
+		dump, _ := httputil.DumpRequest(r, false)
+		logRequestf(r, "request header: %s", dump)
+	}
+
 	q, err := unmarshalQuery(url)
 	if err != nil {
 		apiError(w, r, err)
 		return
+	}
+
+	// XXX: it's dirty. i think i like it
+	if strings.Contains(r.Header.Get("accept"), "html") {
+		q.accept = "html"
+	} else {
+		q.accept = "json"
 	}
 
 	switch {
@@ -57,8 +73,8 @@ func apiHandler(w http.ResponseWriter, r *http.Request, url string) {
 	case q.RegionID > 0:
 		err = apiByRegionID(w, r, q)
 
-	case q.Hot > 0:
-		err = apiHot(w, r, q)
+	case q.Activity > 0:
+		err = apiActivity(w, r, q)
 
 	default:
 		logRequestf(r, "hmmmm ... maybe you would like all the newest kills?")
@@ -96,6 +112,8 @@ func apiByKillID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	_, err = w.Write(marsh)
 	if err != nil {
 		return errors.Wrap(err, "response.write")
@@ -154,51 +172,22 @@ func apiByRegionID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 	return apiWriteResponse(w, r, refs)
 }
 
-func apiHot(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
-	stats, err := db.Hot(q.Hot)
+func apiActivity(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
+	stats, err := db.Activity(q.Activity)
 	if err != nil {
-		return errors.Wrap(err, "db.Hot")
+		return errors.Wrap(err, "db.Activity")
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, err = w.Write([]byte{'['})
-	if err != nil {
-		return errors.Wrap(err, "response.Write")
-	}
+	dot := struct {
+		Time         string
+		SolarSystems []*db.SystemStat
+	}{Time: time.Now().Format(db.EveTimeFormat), SolarSystems: stats}
 
-	size := len(stats)
-	for i, stat := range stats {
-		b, err := json.Marshal(stat)
-		if err != nil {
-			return errors.Wrap(err, "json.Marshal")
-		}
+	return executeTemplate(w, r, templateName(q, "activity"), &dot)
+}
 
-		_, err = w.Write(b)
-		if err != nil {
-			return errors.Wrap(err, "response.write")
-		}
-
-		// append a , or ] so we only have to do one write ...
-		var sep []byte
-		if i == size-1 {
-			sep = []byte{']'}
-		} else {
-			sep = []byte{','}
-		}
-
-		_, err = w.Write(sep)
-		if err != nil {
-			return errors.Wrap(err, "response.write")
-		}
-	}
-	if size == 0 {
-		_, err := w.Write([]byte{']'})
-		if err != nil {
-			return errors.Wrap(err, "response.Write")
-		}
-	}
-
-	return nil
+func templateName(q *apiQuery, n string) string {
+	return n + "." + q.accept
 }
 
 func apiNewest(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -213,6 +202,7 @@ func apiNewest(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 
 func apiWriteResponse(w http.ResponseWriter, r *http.Request, refs []bobstore.Ref) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	_, err := w.Write([]byte{'['})
 	if err != nil {
 		return errors.Wrap(err, "response.Write")
@@ -318,8 +308,8 @@ func unmarshalQuery(url string) (*apiQuery, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "strconv.ParseUInt %s", parts[i])
 			}
-		case "hot":
-			q.Hot, err = time.ParseDuration(parts[i+1])
+		case "activity":
+			q.Activity, err = time.ParseDuration(parts[i+1])
 			if err != nil {
 				return nil, errors.Wrapf(err, "time.ParseDuration %s", parts[i])
 			}

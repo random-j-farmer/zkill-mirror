@@ -73,7 +73,12 @@ func Port() int {
 
 // Verbose output
 func Verbose() bool {
-	return viper.GetBool("verbose")
+	return viper.GetBool("verbose") || Debug()
+}
+
+// Debug output ... verboser than verbose!
+func Debug() bool {
+	return viper.GetBool("debug")
 }
 
 // CacheTemplates - should templates be cached
@@ -89,6 +94,7 @@ func DefaultCommand() string {
 
 func init() {
 	viper.SetDefault("verbose", false)
+	viper.SetDefault("debug", false)
 	viper.SetDefault("default_command", "help")
 
 	viper.SetDefault("db_name", "zkill-mirror.bolt")
@@ -124,6 +130,7 @@ func init() {
 		log.Println(sep)
 		log.Println("Configuration:")
 		log.Println("verbose:\t", Verbose())
+		log.Println("debug:\t", Debug())
 		log.Println("default_command:\t", DefaultCommand())
 		log.Println()
 		log.Println("db_name:\t", DBName())

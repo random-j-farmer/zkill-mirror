@@ -2,6 +2,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -34,12 +35,23 @@ func listenAndServe() error {
 
 var cachedTemplates *template.Template
 
-func executeTemplate(w http.ResponseWriter, r *http.Request, name string, data interface{}) {
-	err := getTemplate(name).ExecuteTemplate(w, name, data)
+var templateFuncs = template.FuncMap{"json": jsonMarshal}
+
+func jsonMarshal(data interface{}) template.HTML {
+	b, err := json.Marshal(data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		logRequestf(r, "error: %v", err)
+		log.Printf("json marshall error: %v", err)
 	}
+	return template.HTML(b)
+}
+
+func executeTemplate(w http.ResponseWriter, r *http.Request, name string, data interface{}) error {
+	if strings.HasSuffix(name, ".json") {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+
+	return getTemplate(name).ExecuteTemplate(w, name, data)
 }
 
 func getTemplate(name string) *template.Template {
@@ -47,7 +59,7 @@ func getTemplate(name string) *template.Template {
 		return cachedTemplates
 	}
 	var body = string(assets.MustAsset("templates/" + name))
-	return template.Must(template.New(name).Parse(body))
+	return template.Must(template.New(name).Funcs(templateFuncs).Parse(body))
 }
 
 func mustParseTemplates() {
@@ -58,7 +70,7 @@ func mustParseTemplates() {
 				log.Printf("asset: %s template: %s", name, tname)
 			}
 			var body = string(assets.MustAsset(name))
-			cachedTemplates = template.Must(template.New(tname).Parse(body))
+			cachedTemplates = template.Must(template.New(tname).Funcs(templateFuncs).Parse(body))
 		}
 	}
 }
@@ -70,7 +82,7 @@ func logRequestf(r *http.Request, fmtstr string, args ...interface{}) {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request, url string) {
-	redir := "/api/"
+	redir := "/api/activity/1h/"
 	if config.Verbose() {
 		logRequestf(r, "redirecting to %s", redir)
 	}

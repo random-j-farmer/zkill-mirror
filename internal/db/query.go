@@ -72,15 +72,15 @@ func ByRegionID(regionID uint64, limit int) ([]bobstore.Ref, error) {
 
 // SystemStat is a statistics returned by Hot
 type SystemStat struct {
-	RegionID        uint64  `json:"regionID"`
-	RegionName      string  `json:"regionName"`
-	SolarSystemID   uint64  `json:"solarSystemID"`
-	SolarSystemName string  `json:"solarSystemName"`
-	Security        float32 `json:"security"`
-	Kills           int64   `json:"kills"`
-	RegionKills     int64   `json:"regionKills"`
-	ISK             int64   `json:"totalValue"`
-	RegionISK       int64   `json:"regionTotalValue"`
+	RegionID         uint64  `json:"regionID"`
+	RegionName       string  `json:"regionName"`
+	SolarSystemID    uint64  `json:"solarSystemID"`
+	SolarSystemName  string  `json:"solarSystemName"`
+	Security         float32 `json:"security"`
+	Kills            int64   `json:"kills"`
+	TotalValue       int64   `json:"totalValue"`
+	RegionKills      int64   `json:"regionKills"`
+	RegionTotalValue int64   `json:"regionTotalValue"`
 }
 
 // to implement sort.Interface on ...
@@ -92,7 +92,7 @@ func (st *systemStats) Len() int {
 
 func (st *systemStats) Less(i, j int) bool {
 	if (*st)[i].Kills == (*st)[j].Kills {
-		return (*st)[i].ISK > (*st)[j].ISK
+		return (*st)[i].TotalValue > (*st)[j].TotalValue
 	}
 	return (*st)[i].Kills > (*st)[j].Kills
 }
@@ -101,8 +101,8 @@ func (st *systemStats) Swap(i, j int) {
 	(*st)[i], (*st)[j] = (*st)[j], (*st)[i]
 }
 
-// Hot returns the hot systems in the given period
-func Hot(d time.Duration) ([]*SystemStat, error) {
+// Activity returns the hot systems in the given period
+func Activity(d time.Duration) ([]*SystemStat, error) {
 	now := time.Now().UTC()
 	end := now.Add(-d)
 
@@ -141,7 +141,7 @@ func Hot(d time.Duration) ([]*SystemStat, error) {
 	}
 
 	if config.Verbose() {
-		log.Printf("hot %v: scanned %d records", d, cnt)
+		log.Printf("activity %v: scanned %d records", d, cnt)
 	}
 
 	stats := systemStats(make([]*SystemStat, 0, len(killsBySystem)))
@@ -150,15 +150,15 @@ func Hot(d time.Duration) ([]*SystemStat, error) {
 		regid, rname := mapdata.RegionBySolarSystem(sysid)
 
 		stats = append(stats, &SystemStat{
-			RegionID:        regid,
-			RegionName:      rname,
-			SolarSystemID:   sysid,
-			SolarSystemName: sd.SolarSystemName,
-			Security:        sd.Security,
-			Kills:           syskills,
-			RegionKills:     killsByRegion[regid],
-			ISK:             iskBySystem[sysid],
-			RegionISK:       iskByRegion[regid],
+			RegionID:         regid,
+			RegionName:       rname,
+			SolarSystemID:    sysid,
+			SolarSystemName:  sd.SolarSystemName,
+			Security:         sd.Security,
+			Kills:            syskills,
+			RegionKills:      killsByRegion[regid],
+			TotalValue:       iskBySystem[sysid],
+			RegionTotalValue: iskByRegion[regid],
 		})
 	}
 	sort.Sort(&stats)

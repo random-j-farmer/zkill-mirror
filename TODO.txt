@@ -1,0 +1,5 @@
+more html pages (other queries than activity)
+make index smaller
+detect duplicate killmails
+crest killmail format
+persistent cookiejar? https://github.com/juju/persistent-cookiejar

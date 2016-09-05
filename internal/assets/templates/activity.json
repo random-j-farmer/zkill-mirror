@@ -1,0 +1,2 @@
+[{{range $i, $e := .SolarSystems}}{{if $i}},
+{{end}}{{json $e}}{{end}}]

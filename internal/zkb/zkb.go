@@ -88,7 +88,13 @@ var client = &http.Client{
 var emptyRegex = regexp.MustCompile(`^\s*{\s*"?package"?:\s*null\s*}\s*`)
 
 func pullKillmail(bdb *bobstore.DB, kmQueue chan<- *Killmail) (sleepy bool) {
-	resp, err := client.Get("https://redisq.zkillboard.com/listen.php")
+	req, err := http.NewRequest("GET", "https://redisq.zkillboard.com/listen.php", nil)
+	if err != nil {
+		log.Printf("zkb.httpWorker: http.NewReqeuest: %v", err)
+		return true
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("zkb.httpWorker: get error: %v", err)
 		return true

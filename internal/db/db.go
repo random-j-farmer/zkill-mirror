@@ -27,6 +27,9 @@ var kmCharID = []byte("kmCharID")
 var kmCorpID = []byte("kmCharID")
 var kmAlliID = []byte("kmAlliID")
 
+// EveTimeFormat is the date/time format used by eve timestamps
+var EveTimeFormat = "2006.01.02 15:04:05"
+
 // InitDB opens and initialize DB
 func InitDB(dbname string, noSync bool) {
 	var err error
@@ -139,7 +142,7 @@ func init() {
 func d64Time(s string) string {
 	// 01/02 03:04:05PM '06 -07:00  ===> JAN 01
 	// "2016.08.28 18:10:28"
-	dt, err := time.Parse("2006.01.02 15:04:05", s)
+	dt, err := time.Parse(EveTimeFormat, s)
 	if err != nil {
 		log.Printf("warning: can not parse killtime %s", s)
 		return d64.EncodeUInt64(0, 6)

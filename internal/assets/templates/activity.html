@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+    <title>Eve Online ZKill Activity</title>
+    <!-- inject:css -->
+    <link rel="stylesheet" href="/static/datatables.net-dt/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="/static/pure/pure-min.css">
+    <!-- endinject -->
+    <!-- inject:js -->
+    <script src="/static/jquery/dist/jquery.min.js"></script>
+    <script src="/static/datatables.net/js/jquery.dataTables.min.js"></script>
+    <!-- endinject -->
+    <script src="/static/bundle.js"></script>
+</head>
+
+<body style="padding: 24px;">
+  <div class="pure-g">
+    <h1 class="pure-u-1-2">EVE Online ZKill Activity</h1>
+    <h3 class="pure-u-1-2" style="text-align: right;">Time: {{.Time}}</h3>
+  </div>
+
+<table id="activeSystems" class="display" cellspacing="0" width="100%">
+    <thead>
+    <tr>
+        <th>System</th>
+        <th>Region</th>
+        <th>Security</th>
+        <th>Kills</th>
+        <th>ISK</th>
+        <th>Region Kills</th>
+        <th>Region ISK</th>
+    </tr>
+    </thead>
+    <tfoot>
+    <tr>
+        <th>System</th>
+        <th>Region</th>
+        <th>Security</th>
+        <th>Kills</th>
+        <th>ISK</th>
+        <th>Region Kills</th>
+        <th>Region ISK</th>
+    </tr>
+    </tfoot>
+
+    <tbody hidden>
+      {{range .SolarSystems}}
+      <tr>
+        <td>{{.SolarSystemName}}</td>
+        <td>{{.RegionName}}</td>
+        <td>{{.Security}}</td>
+        <td>{{.Kills}}</td>
+        <td>{{.TotalValue}}</td>
+        <td>{{.RegionKills}}</td>
+        <td>{{.RegionTotalValue}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+</table>
+
+</body>
+</html>

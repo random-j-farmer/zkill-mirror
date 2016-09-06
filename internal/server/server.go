@@ -35,7 +35,7 @@ func listenAndServe() error {
 
 var cachedTemplates = make(map[string]*template.Template)
 
-var templateFuncs = template.FuncMap{"json": jsonMarshal}
+var templateFuncs = template.FuncMap{"json": jsonMarshal, "isk": formatISK, "evenOdd": evenOrOdd}
 
 func jsonMarshal(data interface{}) template.HTML {
 	b, err := json.Marshal(data)
@@ -43,6 +43,31 @@ func jsonMarshal(data interface{}) template.HTML {
 		log.Printf("json marshall error: %v", err)
 	}
 	return template.HTML(b)
+}
+
+func formatISK(data interface{}) string {
+	return formatISKString(fmt.Sprintf("%d.00", data))
+}
+
+var iskRE = regexp.MustCompile(`\d\d{3}[,.]`)
+
+func formatISKString(s string) string {
+	for {
+		m := iskRE.FindStringSubmatch(s)
+		if m == nil {
+			return s
+		}
+		s = iskRE.ReplaceAllStringFunc(s, func(m string) string {
+			return m[0:1] + "," + m[1:]
+		})
+	}
+}
+
+func evenOrOdd(data interface{}) string {
+	if data.(int)&1 == 0 {
+		return "even"
+	}
+	return "odd"
 }
 
 func executeTemplate(w http.ResponseWriter, r *http.Request, name string, data interface{}) error {

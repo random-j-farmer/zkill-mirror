@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/random-j-farmer/zkill-mirror/internal/blobs"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
 	"github.com/random-j-farmer/zkill-mirror/internal/db"
+	"github.com/random-j-farmer/zkill-mirror/internal/mapdata"
 	"github.com/random-j-farmer/zkill-mirror/internal/zkb"
 )
 
@@ -92,34 +92,12 @@ func apiByKillID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 		return errors.Wrap(err, "db.ByKillID")
 	}
 
-	if config.Verbose() {
-		logRequestf(r, "killID %d: retrieving %v", q.KillID, ref)
-	}
-
-	b, err := blobs.DB.Read(ref)
+	infos, err := retrieveKillmails([]bobstore.Ref{ref})
 	if err != nil {
-		return errors.Wrap(err, "bobstore.read")
+		return err
 	}
 
-	parsed, err := zkb.Parse(b, ref)
-	if err != nil {
-		return errors.Wrapf(err, "zkb.Parse %s", ref)
-	}
-
-	marsh, err := json.Marshal(parsed)
-	if err != nil {
-		return errors.Wrapf(err, "json.Marshal %s", ref)
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	_, err = w.Write(marsh)
-	if err != nil {
-		return errors.Wrap(err, "response.write")
-	}
-
-	return nil
+	return executeTemplate(w, r, templateName(q, "detail"), infos[0])
 }
 
 func apiByCharacterID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -129,7 +107,7 @@ func apiByCharacterID(w http.ResponseWriter, r *http.Request, q *apiQuery) error
 	}
 
 	logRequestf(r, "apiByCharacterID: %d results", len(refs))
-	return apiWriteResponse(w, r, refs)
+	return apiWriteResponse(w, r, q, refs)
 }
 
 func apiByCorporationID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -139,7 +117,7 @@ func apiByCorporationID(w http.ResponseWriter, r *http.Request, q *apiQuery) err
 	}
 
 	logRequestf(r, "apiByCorporationID: %d results", len(refs))
-	return apiWriteResponse(w, r, refs)
+	return apiWriteResponse(w, r, q, refs)
 }
 
 func apiByAllianceID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -149,7 +127,7 @@ func apiByAllianceID(w http.ResponseWriter, r *http.Request, q *apiQuery) error 
 	}
 
 	logRequestf(r, "apiByAllianceID: %d results", len(refs))
-	return apiWriteResponse(w, r, refs)
+	return apiWriteResponse(w, r, q, refs)
 }
 
 func apiBySystemID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -159,7 +137,7 @@ func apiBySystemID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 	}
 
 	logRequestf(r, "apiBySystemID: %d results", len(refs))
-	return apiWriteResponse(w, r, refs)
+	return apiWriteResponse(w, r, q, refs)
 }
 
 func apiByRegionID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -169,7 +147,7 @@ func apiByRegionID(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 	}
 
 	logRequestf(r, "apiByRegionID: %d results", len(refs))
-	return apiWriteResponse(w, r, refs)
+	return apiWriteResponse(w, r, q, refs)
 }
 
 func apiActivity(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
@@ -197,61 +175,82 @@ func apiNewest(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 	}
 
 	logRequestf(r, "apiNewest: %d results", len(refs))
-	return apiWriteResponse(w, r, refs)
+	return apiWriteResponse(w, r, q, refs)
 }
 
-func apiWriteResponse(w http.ResponseWriter, r *http.Request, refs []bobstore.Ref) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	_, err := w.Write([]byte{'['})
+func apiWriteResponse(w http.ResponseWriter, r *http.Request, q *apiQuery, refs []bobstore.Ref) error {
+	infos, err := retrieveKillmails(refs)
 	if err != nil {
-		return errors.Wrap(err, "response.Write")
+		return err
 	}
 
-	size := len(refs)
+	dot := struct {
+		Time      string
+		Killmails []*killmailInfo
+	}{Time: time.Now().Format(db.EveTimeFormat), Killmails: infos}
+
+	return executeTemplate(w, r, templateName(q, "killmails"), &dot)
+}
+
+type killmailInfo struct {
+	*zkb.Killmail
+	Security        float32
+	VictimSummary   string
+	AttackerSummary string
+}
+
+func retrieveKillmails(refs []bobstore.Ref) ([]*killmailInfo, error) {
+	kms := make([]*killmailInfo, len(refs))
 	for i, ref := range refs {
 		b, err := blobs.DB.Read(ref)
 		if err != nil {
-			return errors.Wrapf(err, "bobstore.Read %s", ref)
+			return nil, errors.Wrapf(err, "bobstore.Read %s", ref)
 		}
 
 		parsed, err := zkb.Parse(b, ref)
 		if err != nil {
-			return errors.Wrapf(err, "zkb.Parse %s", ref)
+			return nil, errors.Wrapf(err, "zkb.Parse %s", ref)
 		}
 
-		marsh, err := json.Marshal(parsed)
-		if err != nil {
-			return errors.Wrapf(err, "json.Marshal %s", ref)
-		}
-
-		_, err = w.Write(marsh)
-		if err != nil {
-			return errors.Wrap(err, "response.write")
-		}
-
-		// append a , or ] so we only have to do one write ...
-		var sep []byte
-		if i == size-1 {
-			sep = []byte{']'}
-		} else {
-			sep = []byte{','}
-		}
-
-		_, err = w.Write(sep)
-		if err != nil {
-			return errors.Wrap(err, "response.write")
-		}
-
-	}
-	if size == 0 {
-		_, err := w.Write([]byte{']'})
-		if err != nil {
-			return errors.Wrap(err, "response.Write")
+		si := mapdata.SolarSystemByID(parsed.SolarSystemID)
+		kms[i] = &killmailInfo{
+			Killmail:        parsed,
+			Security:        si.Security,
+			VictimSummary:   victimSummary(parsed),
+			AttackerSummary: attackerSummary(parsed),
 		}
 	}
+	return kms, nil
+}
 
-	return nil
+func victimSummary(km *zkb.Killmail) string {
+	allOrCorp := km.Victim.AllianceName
+	if allOrCorp == "" {
+		allOrCorp = km.Victim.CorporationName
+	}
+	return fmt.Sprintf("%s (%s)", km.Victim.CharacterName, allOrCorp)
+}
+
+func attackerSummary(km *zkb.Killmail) string {
+	var att *zkb.Attacker
+	for _, a := range km.Attackers {
+		if a.FinalBlow != 0 {
+			att = &a
+		}
+	}
+	if att == nil {
+		att = &km.Attackers[0]
+	}
+	allOrCorp := att.AllianceName
+	if allOrCorp == "" {
+		allOrCorp = att.CorporationName
+	}
+	final := fmt.Sprintf("%s (%s)", att.CharacterName, allOrCorp)
+	if len(km.Attackers) > 1 {
+		return fmt.Sprintf("%s +%d", final, len(km.Attackers))
+	}
+
+	return final
 }
 
 func apiError(w http.ResponseWriter, r *http.Request, err error) error {

@@ -89,7 +89,7 @@ type Position struct {
 // Item - an item that dropped or was destroyed
 type Item struct {
 	ItemTypeID        uint64 `json:"itemTypeID"`
-	ItemTypeName      string `json:"-"`
+	ItemTypeName      string `json:"itemTypeName"`
 	QuantityDropped   int    `json:"quantityDropped"`
 	QuantityDestroyed int    `json:"quantityDestroyed"`
 	Singleton         int    `json:"singleton"`
@@ -146,11 +146,9 @@ func Parse(b []byte, ref bobstore.Ref) (*Killmail, error) {
 			AllianceName:    vq.String("alliance", "name"),
 			FactionID:       vq.UInt64("faction", "id"),
 			FactionName:     vq.String("faction", "name"),
-
-			DamageTaken: vq.Float("damageDone"),
-
-			ShipTypeID:   vq.UInt64("shipType", "id"),
-			ShipTypeName: vq.String("shipType", "name"),
+			DamageTaken:     vq.Float("damageTaken"),
+			ShipTypeID:      vq.UInt64("shipType", "id"),
+			ShipTypeName:    vq.String("shipType", "name"),
 		},
 
 		Ref: ref,
@@ -184,10 +182,9 @@ func Parse(b []byte, ref bobstore.Ref) (*Killmail, error) {
 		a.AllianceName = aq.String("alliance", "name")
 		a.FactionID = aq.UInt64("faction", "id")
 		a.FactionName = aq.String("faction", "name")
-
 		a.SecStatus = aq.Float("securityStatus")
 		a.DamageDone = aq.Float("damageDone")
-
+		a.FinalBlow = aq.Int("finalBlow")
 		a.ShipTypeID = aq.UInt64("shipType", "id")
 		a.ShipTypeName = aq.String("shipType", "name")
 		a.WeaponTypeID = aq.UInt64("weaponType", "id")

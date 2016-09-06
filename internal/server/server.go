@@ -46,7 +46,15 @@ func jsonMarshal(data interface{}) template.HTML {
 }
 
 func formatISK(data interface{}) string {
-	return formatISKString(fmt.Sprintf("%d.00", data))
+	format := "%d.00"
+	switch data.(type) {
+	case float32:
+		format = "%0.2f"
+	case float64:
+		format = "%0.2f"
+	}
+
+	return formatISKString(fmt.Sprintf(format, data))
 }
 
 var iskRE = regexp.MustCompile(`\d\d{3}[,.]`)

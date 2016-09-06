@@ -1,0 +1,2 @@
+[{{range $i, $e := .Killmails}}{{if $i}},
+{{end}}{{json $e.Killmail}}{{end}}]

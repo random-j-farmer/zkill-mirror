@@ -140,9 +140,6 @@ func init() {
 		log.Println()
 		log.Println("port", Port())
 		log.Println("cache_templates", CacheTemplates())
-		log.Println()
-		log.Println("port:\t", Port())
-		log.Println("cache_templates:\t", CacheTemplates())
 		log.Println(sep)
 	}
 }

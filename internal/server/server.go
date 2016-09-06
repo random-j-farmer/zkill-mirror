@@ -33,7 +33,7 @@ func listenAndServe() error {
 	return http.ListenAndServe(on, nil)
 }
 
-var cachedTemplates *template.Template
+var cachedTemplates = make(map[string]*template.Template)
 
 var templateFuncs = template.FuncMap{"json": jsonMarshal}
 
@@ -56,7 +56,7 @@ func executeTemplate(w http.ResponseWriter, r *http.Request, name string, data i
 
 func getTemplate(name string) *template.Template {
 	if config.CacheTemplates() {
-		return cachedTemplates
+		return cachedTemplates[name]
 	}
 	var body = string(assets.MustAsset("templates/" + name))
 	return template.Must(template.New(name).Funcs(templateFuncs).Parse(body))
@@ -67,10 +67,10 @@ func mustParseTemplates() {
 		if strings.HasPrefix(name, "templates/") {
 			tname := name[len("templates/"):]
 			if config.Verbose() {
-				log.Printf("asset: %s template: %s", name, tname)
+				log.Printf("cached template: %s template: %s", name, tname)
 			}
 			var body = string(assets.MustAsset(name))
-			cachedTemplates = template.Must(template.New(tname).Funcs(templateFuncs).Parse(body))
+			cachedTemplates[tname] = template.Must(template.New(tname).Funcs(templateFuncs).Parse(body))
 		}
 	}
 }

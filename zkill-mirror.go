@@ -88,24 +88,29 @@ func closeDBs() {
 	}
 }
 
-func serve() {
-	if config.PullEnabled() {
-		var wg sync.WaitGroup
-		stop := make(chan struct{})
-		kmQueue := make(chan *zkb.Killmail, 1)
+// handleSignals is always called, wg.Wait just does not do anything
+// if pulling is disabled.  this lets us test the shutdown procedure without
+// pulling data
+func handleSignals(sigChan <-chan os.Signal, stop chan<- struct{}, wg *sync.WaitGroup) {
+	sig := <-sigChan
+	log.Printf("signal caught: %v", sig)
+	cleanup(stop, wg)
+	os.Exit(0)
+}
 
+func serve() {
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	go handleSignals(sigChan, stop, &wg)
+
+	if config.PullEnabled() {
+		kmQueue := make(chan *zkb.Killmail, 1)
 		go zkb.PullKillmails(blobs.DB, kmQueue, stop, &wg)
 		go db.IndexWorker(kmQueue, &wg)
-
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-
-		go func() {
-			sig := <-sigChan
-			log.Printf("signal caught: %v", sig)
-			cleanup(stop, &wg)
-			os.Exit(0)
-		}()
 	}
 
 	// http server is not stopped - only worker goroutines and db handle

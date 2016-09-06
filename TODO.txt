@@ -1,5 +1,8 @@
-more html pages (other queries than activity)
-make index smaller
-detect duplicate killmails
-crest killmail format
-persistent cookiejar? https://github.com/juju/persistent-cookiejar
+(A) isk format activity page, 100 entries per default
+(B) more html pages (other queries than activity)
+(B) detect duplicate killmails
+(C) make index smaller
+(E) crest killmail format
+(Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
+x (A) fix template caching
+x (A) signal handlers even if not pulling (for ease of testing)

@@ -1,9 +1,10 @@
+(A) log killtime
 (B) detect duplicate killmails
 (C) cache headers
 (C) make index smaller
 (E) crest killmail format
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
-Killmails view: show crit, like by Region Aridia
+Killmails view: show criteria, like by Region Aridia.  Details: show items, fit?
 x (A) De-uglify details page
 x (B) more html pages (other queries than activity)
 x (A) datatable: no hiding, no paging, pre-apply datatable css to reduce reformat

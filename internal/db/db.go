@@ -206,7 +206,7 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 					return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
 				}
 			}
-			log.Printf("indexed %s under pk:%d\n", km.Ref, km.KillID)
+			log.Printf("indexed %s killID:%d killTime:%s\n", km.Ref, km.KillID, km.KillTime)
 		}
 
 		return nil

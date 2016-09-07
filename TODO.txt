@@ -1,4 +1,6 @@
+(A) shutdown: stop channel must be prioritized over work channel
 (A) log killtime
+(B) index character/corporation/alliance names for search
 (B) detect duplicate killmails
 (C) cache headers
 (C) make index smaller

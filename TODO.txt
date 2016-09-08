@@ -1,12 +1,14 @@
 (A) shutdown: stop channel must be prioritized over work channel
-(A) log killtime
 (B) index character/corporation/alliance names for search
 (B) detect duplicate killmails
 (C) cache headers
 (C) make index smaller
 (E) crest killmail format
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
-Killmails view: show criteria, like by Region Aridia.  Details: show items, fit?
+Killmails view: show criteria, like by Region Aridia.
+Killmails details: show items, fit?
+x (A) killmail details: show attacker ship name (not id)
+x (A) log killtime
 x (A) De-uglify details page
 x (B) more html pages (other queries than activity)
 x (A) datatable: no hiding, no paging, pre-apply datatable css to reduce reformat

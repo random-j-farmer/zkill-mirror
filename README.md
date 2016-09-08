@@ -36,6 +36,16 @@ This might become automated at some point, or the indexing scheme might become
 more stable.  In the near future, my #1 goal is to reduce the db/index size,
 so it is not going to be stable.
 
+Duplicates
+----------
+
+Beware of switching between running natively and in a docker container.
+At least on my server, the host os prefers ipv6, but in the docker container
+ipv4 is preferred.  That means accessing zkillboard.com with a different ip
+address - and the zkillboard redisQ api queues by ip address.
+
+Switching now and then won't hurt.  If you do it a lot, you'll waste space.
+
 Development
 ===========
 

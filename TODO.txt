@@ -1,4 +1,3 @@
-(A) shutdown: stop channel must be prioritized over work channel
 (B) index character/corporation/alliance names for search
 (B) detect duplicate killmails
 (C) cache headers
@@ -7,6 +6,7 @@
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
 Killmails view: show criteria, like by Region Aridia.
 Killmails details: show items, fit?
+x (A) shutdown: stop channel must be prioritized over work channel
 x (A) killmail details: show attacker ship name (not id)
 x (A) log killtime
 x (A) De-uglify details page

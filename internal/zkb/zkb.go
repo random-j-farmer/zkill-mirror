@@ -30,6 +30,18 @@ func PullKillmails(bdb *bobstore.DB, kmQueue chan<- *Killmail, stop <-chan struc
 	work := makeWorkQueue(stop)
 
 	for {
+		// first select - only stop channel
+		// this means if the stop channel selects, the second select is never entered
+		select {
+		case <-stop:
+			log.Print("zkb.PullKillmails: stop channel selects ... closing km indexing queue")
+			close(kmQueue)
+			return
+		default:
+		}
+
+		// second select - stop & work
+		// first one selects, or if both are ready a random one is chosen by go
 		select {
 		case <-stop:
 			log.Print("zkb.PullKillmails: stop channel selects ... closing km indexing queue")

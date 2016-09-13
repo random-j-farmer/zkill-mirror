@@ -11,8 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
 	"github.com/random-j-farmer/d64"
+	"github.com/random-j-farmer/eveapi/mapdata"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
-	"github.com/random-j-farmer/zkill-mirror/internal/mapdata"
 )
 
 // ByKillID queries the DB by killID
@@ -210,4 +210,20 @@ func byPrefix(prefix []byte, bucket []byte, limit int) ([]bobstore.Ref, error) {
 	}
 
 	return refs, nil
+}
+
+// CharCorpAllianceName does a combined lookup for the char, corp and alliance name
+func CharCorpAllianceName(charID, corpID, allianceID uint64) (charName, corpName, allianceName string) {
+	err := DB.View(func(tx *bolt.Tx) error {
+		charName = string(tx.Bucket(charNameByID).Get([]byte(d64ID(charID))))
+		corpName = string(tx.Bucket(corpNameByID).Get([]byte(d64ID(corpID))))
+		allianceName = string(tx.Bucket(allNameByID).Get([]byte(d64ID(allianceID))))
+
+		return nil
+	})
+	if err != nil {
+		log.Printf("Error looking up char/corp/alliance: %v", err)
+	}
+
+	return // named return
 }

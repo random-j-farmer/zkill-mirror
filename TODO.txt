@@ -1,11 +1,16 @@
-(B) index character/corporation/alliance names for search
-(B) detect duplicate killmails
-(C) cache headers
-(C) make index smaller
+(A) Killmails details: show items, fit?
+(A) Killmails details: find nearest celestial/gate for kill
+(B) store schema version in boltdb, run reindex as needed
+(B) pull map/kills and map/jumps data, show in activity feed
+(B) extract killmail structure into eveapi, provide functions for zkillmail/zkill-mirror access
+(D) detect duplicate killmails
+(D) make index smaller
+(E) cache headers
 (E) crest killmail format
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
-Killmails view: show criteria, like by Region Aridia.
-Killmails details: show items, fit?
+x (A) Killmails view: show criteria, like by Region Aridia.
+x (A) index character/corporation/alliance names for search
+x (A) Killmail views: show eve time, not local
 x (A) shutdown: stop channel must be prioritized over work channel
 x (A) killmail details: show attacker ship name (not id)
 x (A) log killtime

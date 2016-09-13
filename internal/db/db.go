@@ -27,6 +27,13 @@ var kmCharID = []byte("kmCharID")
 var kmCorpID = []byte("kmCharID")
 var kmAlliID = []byte("kmAlliID")
 
+var charIDByName = []byte("charIDByName")
+var corpIDByName = []byte("corpIDByName")
+var allIDByName = []byte("allIDByName")
+var charNameByID = []byte("charNameByID")
+var corpNameByID = []byte("corpNameByID")
+var allNameByID = []byte("allNameByID")
+
 // EveTimeFormat is the date/time format used by eve timestamps
 var EveTimeFormat = "2006.01.02 15:04:05"
 
@@ -40,7 +47,8 @@ func InitDB(dbname string, noSync bool) {
 	DB.NoSync = noSync
 
 	DB.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range [][]byte{kmByID, kmByDate, kmBySystem, kmByRegion, kmCharID, kmCorpID, kmAlliID} {
+		for _, bucket := range [][]byte{kmByID, kmByDate, kmBySystem, kmByRegion, kmCharID, kmCorpID, kmAlliID,
+			charIDByName, corpIDByName, allIDByName, charNameByID, corpNameByID, allNameByID} {
 			_, err2 := tx.CreateBucketIfNotExists(bucket)
 			if err2 != nil {
 				return err2
@@ -68,6 +76,11 @@ const d64RefSep = ":"
 // it seems some ids are longer ... but only solar system ids ??
 func d64ID(id uint64) string {
 	return d64.EncodeUInt64(id, 5)
+}
+
+func dec64ID(s string) uint64 {
+	id, _ := d64.DecodeUInt64(s)
+	return id
 }
 
 func d64TimeID(dt string, id1 uint64) string {
@@ -180,6 +193,7 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 					km.Victim.CharacterID, km.Victim.CorporationID, km.Victim.AllianceID)
 			}
 
+			// unconditial work items
 			work := []workitem{
 				{kmByID, d64ID(km.KillID), refStr},
 				{kmByDate, d64TimeID(km.KillTime, km.KillID), d64Ref(km.Ref, km.RegionID, km.SolarSystemID, uint64(km.ZKB.TotalValue))},
@@ -190,22 +204,66 @@ func IndexKillmails(kms []*zkb.Killmail) error {
 				{kmAlliID, d64IDTimeID(km.Victim.AllianceID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.AllianceID)},
 			}
 
+			// these will be most likely already present in the db
+			// so to reduce write load we only write if the mapping changed
+			names := []workitem{
+				{charIDByName, strings.ToLower(km.Victim.CharacterName), d64ID(km.Victim.CharacterID)},
+				{corpIDByName, strings.ToLower(km.Victim.CorporationName), d64ID(km.Victim.CorporationID)},
+				{allIDByName, strings.ToLower(km.Victim.AllianceName), d64ID(km.Victim.AllianceID)},
+				{charNameByID, d64ID(km.Victim.CharacterID), km.Victim.CharacterName},
+				{corpNameByID, d64ID(km.Victim.CorporationID), km.Victim.CorporationName},
+				{allNameByID, d64ID(km.Victim.AllianceID), km.Victim.AllianceName},
+			}
+
 			for _, attacker := range km.Attackers {
 				work = append(work, workitem{kmCharID, d64IDTimeID(attacker.CharacterID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CharacterID)})
 				work = append(work, workitem{kmCorpID, d64IDTimeID(attacker.CorporationID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.CorporationID)})
 				work = append(work, workitem{kmAlliID, d64IDTimeID(attacker.AllianceID, km.KillTime, km.KillID), d64Ref(km.Ref, km.Victim.AllianceID)})
+				names = append(names, workitem{charIDByName, strings.ToLower(attacker.CharacterName), d64ID(attacker.CharacterID)})
+				names = append(names, workitem{corpIDByName, strings.ToLower(attacker.CorporationName), d64ID(attacker.CorporationID)})
+				names = append(names, workitem{allIDByName, strings.ToLower(attacker.AllianceName), d64ID(attacker.AllianceID)})
+				names = append(names, workitem{charNameByID, d64ID(attacker.CharacterID), attacker.CharacterName})
+				names = append(names, workitem{corpNameByID, d64ID(attacker.CorporationID), attacker.CorporationName})
+				names = append(names, workitem{allNameByID, d64ID(attacker.AllianceID), attacker.AllianceName})
 			}
+
 			for _, item := range work {
 				b := tx.Bucket(item.bucket)
 
 				err := b.Put([]byte(item.key), []byte(item.val))
-				if config.Verbose() {
+				if config.Debug() {
 					log.Printf("indexing %s %s", item.bucket, item.key)
 				}
 				if err != nil {
 					return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
 				}
 			}
+
+			for _, item := range names {
+				// no alliance most likely.  anyway, no key for us to index
+				if item.key == "" {
+					continue
+				}
+
+				b := tx.Bucket(item.bucket)
+				k := []byte(item.key)
+				v := []byte(item.val)
+
+				old := b.Get([]byte(item.key))
+				// key already in db.
+				if string(old) == item.val {
+					continue
+				}
+
+				err := b.Put(k, v)
+				if config.Debug() {
+					log.Printf("indexing %s %s", item.bucket, item.key)
+				}
+				if err != nil {
+					return errors.Wrapf(err, "bolt.Put %s %s", b, item.key)
+				}
+			}
+
 			log.Printf("indexed %s killID:%d killTime:%s\n", km.Ref, km.KillID, km.KillTime)
 		}
 

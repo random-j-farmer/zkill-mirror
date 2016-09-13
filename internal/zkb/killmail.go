@@ -3,8 +3,8 @@ package zkb
 import (
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
+	"github.com/random-j-farmer/eveapi/mapdata"
 	"github.com/random-j-farmer/jq"
-	"github.com/random-j-farmer/zkill-mirror/internal/mapdata"
 )
 
 // Killmail contains the data from a eve json killmail

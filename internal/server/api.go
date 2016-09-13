@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,10 +12,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
+	"github.com/random-j-farmer/eveapi/mapdata"
 	"github.com/random-j-farmer/zkill-mirror/internal/blobs"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
 	"github.com/random-j-farmer/zkill-mirror/internal/db"
-	"github.com/random-j-farmer/zkill-mirror/internal/mapdata"
 	"github.com/random-j-farmer/zkill-mirror/internal/zkb"
 )
 
@@ -158,8 +159,9 @@ func apiActivity(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 
 	dot := struct {
 		Time         string
+		Query        string
 		SolarSystems []*db.SystemStat
-	}{Time: time.Now().Format(db.EveTimeFormat), SolarSystems: stats}
+	}{Time: time.Now().UTC().Format(db.EveTimeFormat), Query: q.String(), SolarSystems: stats}
 
 	return executeTemplate(w, r, templateName(q, "activity"), &dot)
 }
@@ -186,8 +188,9 @@ func apiWriteResponse(w http.ResponseWriter, r *http.Request, q *apiQuery, refs 
 
 	dot := struct {
 		Time      string
+		Query     string
 		Killmails []*killmailInfo
-	}{Time: time.Now().Format(db.EveTimeFormat), Killmails: infos}
+	}{Time: time.Now().UTC().Format(db.EveTimeFormat), Query: q.String(), Killmails: infos}
 
 	return executeTemplate(w, r, templateName(q, "killmails"), &dot)
 }
@@ -330,4 +333,39 @@ func unmarshalQuery(url string) (*apiQuery, error) {
 
 func str2id(s string) (uint64, error) {
 	return strconv.ParseUint(s, 10, 64)
+}
+
+func (q *apiQuery) String() string {
+	b := &bytes.Buffer{}
+
+	charName, corpName, allianceName := db.CharCorpAllianceName(q.CharacterID, q.CorporationID, q.AllianceID)
+
+	if q.KillID > 0 {
+		fmt.Fprintf(b, "kill: %d, ", q.KillID)
+	}
+	if q.CharacterID > 0 {
+		fmt.Fprintf(b, "character: %s, ", charName)
+	}
+	if q.CorporationID > 0 {
+		fmt.Fprintf(b, "corporation: %s, ", corpName)
+	}
+	if q.AllianceID > 0 {
+		fmt.Fprintf(b, "alliance: %s, ", allianceName)
+	}
+	if q.SystemID > 0 {
+		fmt.Fprintf(b, "system: %s, ", mapdata.SolarSystemByID(q.SystemID).SolarSystemName)
+	}
+	if q.RegionID > 0 {
+		fmt.Fprintf(b, "region: %s, ", mapdata.RegionNameByID(q.RegionID))
+	}
+	if q.Limit != defaultLimit {
+		fmt.Fprintf(b, "limit: %d, ", q.Limit)
+	}
+	if q.Activity > 0 {
+		fmt.Fprintf(b, "activity: %v, ", q.Activity)
+	}
+
+	s := b.String()
+	l := len(s)
+	return s[:l-2]
 }

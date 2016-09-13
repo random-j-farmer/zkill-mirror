@@ -73,6 +73,21 @@
         <div class="detail-key pure-u">Damage Taken:</div>
         <div class="detail-value pure-u-1">{{.Victim.DamageTaken}}</div>
       </div>
+
+      <div class="detail-header pure-g">
+        <div class="detail-key pure-u"></div>
+        <div class="detail-value pure-u-1"><h3>Items</h3></div>
+      </div>
+
+      <ul>
+      {{ range .Victim.Items }}
+          <li><span>{{ .ItemTypeName }}</span>
+            <span class="item-dropped"
+            >{{ .QuantityDropped }}</span>/<span class="item-destroyed"
+            >{{ .QuantityDestroyed }}</span></li>
+      {{ end }}
+      </ul>
+
     </div>
 
     <div class="pure-u-1-2">

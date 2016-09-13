@@ -366,6 +366,9 @@ func (q *apiQuery) String() string {
 	}
 
 	s := b.String()
-	l := len(s)
-	return s[:l-2]
+	end := len(s) - 2
+	if end < 0 {
+		end = 0
+	}
+	return s[0:end]
 }

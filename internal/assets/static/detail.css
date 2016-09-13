@@ -32,3 +32,15 @@
     position: relative;
     vertical-align: baseline;
 }
+
+.item-fit {
+  color: blue;
+}
+
+.item-dropped {
+  color: green;
+}
+
+.item-destroyed {
+  color: red;
+}

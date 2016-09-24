@@ -31,16 +31,20 @@ func Serve() error {
 
 // simplePath is a non-/ terminated path, starts with prefix
 func simplePath(s string) string {
-	return path.Join(config.URLPrefix(), s)
+	p := "/" + path.Join(config.URLPrefix(), s)
+	// log.Printf("simplePath: %s => %s", s, p)
+	return p
 }
 
 // dirPath for subtree ... joins with prefix and ends with /
 func dirPath(s string) string {
-	p := path.Join(config.URLPrefix(), s)
+	p := simplePath(s)
 	if strings.HasSuffix(p, "/") {
-		return p
+		p = p + "/"
 	}
-	return p + "/"
+
+	// log.Printf("dirPath: %s => %s", s, p)
+	return p
 }
 
 func listenAndServe() error {

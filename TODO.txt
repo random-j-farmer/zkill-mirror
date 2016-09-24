@@ -7,6 +7,7 @@
 (E) cache headers
 (E) crest killmail format
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
+x (A) search by character, corp, alliance (maybe system, region)
 x (A) Killmails details: show items, fit?
 x (A) Killmails view: show criteria, like by Region Aridia.
 x (A) index character/corporation/alliance names for search

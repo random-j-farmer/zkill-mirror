@@ -17,6 +17,7 @@
 // templates/detail.json
 // templates/killmails.html
 // templates/killmails.json
+// templates/search.html
 // DO NOT EDIT!
 
 // +build dev
@@ -351,6 +352,24 @@ func templatesKillmailsJson() (*asset, error) {
 	return a, err
 }
 
+// templatesSearchHtml reads file data from disk. It returns an error on failure.
+func templatesSearchHtml() (*asset, error) {
+	path := filepath.Join(rootDir, "templates/search.html")
+	name := "templates/search.html"
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -420,6 +439,7 @@ var _bindata = map[string]func() (*asset, error){
 	"templates/detail.json": templatesDetailJson,
 	"templates/killmails.html": templatesKillmailsHtml,
 	"templates/killmails.json": templatesKillmailsJson,
+	"templates/search.html": templatesSearchHtml,
 }
 
 // AssetDir returns the file names below a certain
@@ -498,6 +518,7 @@ var _bintree = &bintree{nil, map[string]*bintree{
 		"detail.json": &bintree{templatesDetailJson, map[string]*bintree{}},
 		"killmails.html": &bintree{templatesKillmailsHtml, map[string]*bintree{}},
 		"killmails.json": &bintree{templatesKillmailsJson, map[string]*bintree{}},
+		"search.html": &bintree{templatesSearchHtml, map[string]*bintree{}},
 	}},
 }}
 

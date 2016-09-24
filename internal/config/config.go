@@ -71,6 +71,11 @@ func Port() int {
 	return viper.GetInt("port")
 }
 
+// URLPrefix
+func URLPrefix() string {
+	return viper.GetString("url_prefix")
+}
+
 // Verbose output
 func Verbose() bool {
 	return viper.GetBool("verbose") || Debug()
@@ -108,6 +113,7 @@ func init() {
 	viper.SetDefault("pull_enabled", true)
 
 	viper.SetDefault("port", "8080")
+	viper.SetDefault("url_prefix", "/")
 	viper.SetDefault("cache_templates", true)
 
 	viper.SetConfigName("zkill-mirror")

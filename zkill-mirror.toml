@@ -9,6 +9,9 @@
 # port to listen on
 # port = 8080
 
+# url prefix
+# url_prefix = "/"
+
 # database configuration
 #
 # name of database file

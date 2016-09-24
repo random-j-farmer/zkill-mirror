@@ -175,7 +175,7 @@ func Newest(limit int) ([]bobstore.Ref, error) {
 func byPrefix(prefix []byte, bucket []byte, limit int) ([]bobstore.Ref, error) {
 	refs := make([]bobstore.Ref, 0, limit)
 
-	if config.Verbose() {
+	if config.Debug() {
 		log.Printf("scanning for %s by prefix %s", bucket, prefix)
 	}
 
@@ -205,7 +205,7 @@ func byPrefix(prefix []byte, bucket []byte, limit int) ([]bobstore.Ref, error) {
 		return nil, errors.Wrap(err, "bolt.View")
 	}
 
-	if config.Verbose() {
+	if config.Debug() {
 		log.Printf("scanning for %s by prefix %s: found %d", bucket, prefix, len(refs))
 	}
 

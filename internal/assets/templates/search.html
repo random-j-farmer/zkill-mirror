@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+    <title>Eve Online - Search</title>
+    <!-- inject:css -->
+    <link rel="stylesheet" href="/static/datatables.net-dt/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="/static/pure/pure-min.css">
+    <!-- endinject -->
+    <!-- inject:js -->
+    <script src="/static/jquery/dist/jquery.min.js"></script>
+    <script src="/static/datatables.net/js/jquery.dataTables.min.js"></script>
+    <!-- endinject -->
+</head>
+
+<body style="padding: 24px;">
+  <div class="pure-g">
+    <h1 class="pure-u-1-2">EVE Online - Search</h1>
+  </div>
+
+  {{ if .Characters }}
+  <h2>Characters</h2>
+  <ul>
+  {{ range .Characters }}
+      <li><a href="api/characterID/{{ .ID }}/"
+        >{{ .Name }}</a></li>
+  {{ end }}
+  </ul>
+  {{ end }}
+
+  {{ if .Corporations }}
+  <h2>Corporations</h2>
+  <ul>
+  {{ range .Corporations }}
+      <li><a href="api/corporationID/{{ .ID }}/"
+        >{{ .Name }}</a></li>
+  {{ end }}
+  </ul>
+  {{ end }}
+
+  {{ if .Alliances }}
+  <h2>Alliances</h2>
+  <ul>
+  {{ range .Alliances }}
+      <li><a href="api/allianceID/{{ .ID }}/"
+        >{{ .Name }}</a></li>
+  {{ end }}
+  </ul>
+  {{ end }}
+
+  {{ if .SolarSystems }}
+  <h2>Solar Systems</h2>
+  <ul>
+  {{ range .SolarSystems }}
+      <li><a href="api/solarSystemID/{{ .ID }}/"
+        >{{ .Name }}</a></li>
+  {{ end }}
+  </ul>
+  {{ end }}
+
+  {{ if .Regions }}
+  <h2>Regions</h2>
+  <ul>
+  {{ range .Regions }}
+      <li><a href="api/regionID/{{ .ID }}/"
+        >{{ .Name }}</a></li>
+  {{ end }}
+  </ul>
+  {{ end }}
+
+</body>
+</html>

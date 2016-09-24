@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"path"
 	"regexp"
 	"strings"
 
@@ -20,11 +21,26 @@ func Serve() error {
 	if config.CacheTemplates() {
 		mustParseTemplates()
 	}
-	http.HandleFunc("/", makeHandler(regexp.MustCompile("^(/)$"), rootHandler))
-	http.HandleFunc("/api/", makeHandler(regexp.MustCompile("^/api/(.*)"), apiHandler))
+	http.HandleFunc(dirPath(""), makeHandler(regexp.MustCompile("^(/)$"), rootHandler))
+	http.HandleFunc(dirPath("api"), makeHandler(regexp.MustCompile("^/api/(.*)"), apiHandler))
+	http.HandleFunc(simplePath("search"), makeHandler(nil, searchHandler))
 	fs := &assetfs.AssetFS{Asset: assets.Asset, AssetDir: assets.AssetDir, AssetInfo: assets.AssetInfo, Prefix: ""}
-	http.Handle("/static/", http.FileServer(fs))
+	http.Handle(dirPath("static"), http.FileServer(fs))
 	return listenAndServe()
+}
+
+// simplePath is a non-/ terminated path, starts with prefix
+func simplePath(s string) string {
+	return path.Join(config.URLPrefix(), s)
+}
+
+// dirPath for subtree ... joins with prefix and ends with /
+func dirPath(s string) string {
+	p := path.Join(config.URLPrefix(), s)
+	if strings.HasSuffix(p, "/") {
+		return p
+	}
+	return p + "/"
 }
 
 func listenAndServe() error {

@@ -21,29 +21,55 @@ func Serve() error {
 	if config.CacheTemplates() {
 		mustParseTemplates()
 	}
-	http.HandleFunc(dirPath(""), makeHandler(regexp.MustCompile("^(/)$"), rootHandler))
-	http.HandleFunc(dirPath("api"), makeHandler(regexp.MustCompile("^/api/(.*)"), apiHandler))
+	rootPath := dirPath("")
+	rootRegex := regexp.MustCompile(fmt.Sprintf("^(%s)$", rootPath))
+	apiPath := dirPath("api")
+	apiRegex := regexp.MustCompile(fmt.Sprintf("^%s(.*)$", apiPath))
+	http.HandleFunc(dirPath(""), makeHandler(rootRegex, rootHandler))
+	http.HandleFunc(dirPath("api"), makeHandler(apiRegex, apiHandler))
 	http.HandleFunc(simplePath("search"), makeHandler(nil, searchHandler))
-	fs := &assetfs.AssetFS{Asset: assets.Asset, AssetDir: assets.AssetDir, AssetInfo: assets.AssetInfo, Prefix: ""}
-	http.Handle(dirPath("static"), http.FileServer(fs))
+
+	pfs := &prefixedAssetFS{
+		Prefix: dirPath(""), // only remove zkm_url_prefix, not the static bit
+		fs:     &assetfs.AssetFS{Asset: assets.Asset, AssetDir: assets.AssetDir, AssetInfo: assets.AssetInfo, Prefix: ""},
+	}
+	http.Handle(dirPath("static"), http.FileServer(pfs))
 	return listenAndServe()
+}
+
+type prefixedAssetFS struct {
+	Prefix string
+	fs     *assetfs.AssetFS
+}
+
+func (pfs *prefixedAssetFS) Open(name string) (http.File, error) {
+	name2 := name
+	if strings.HasPrefix(name, pfs.Prefix) {
+		name2 = name[len(pfs.Prefix):]
+	}
+	if config.Debug() {
+		log.Printf("prefixedAssetFS: %s => %s", name, name2)
+	}
+	return pfs.fs.Open(name2)
 }
 
 // simplePath is a non-/ terminated path, starts with prefix
 func simplePath(s string) string {
-	p := "/" + path.Join(config.URLPrefix(), s)
-	// log.Printf("simplePath: %s => %s", s, p)
+	p := path.Join(config.URLPrefix(), s)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
 	return p
 }
 
 // dirPath for subtree ... joins with prefix and ends with /
 func dirPath(s string) string {
 	p := simplePath(s)
-	if strings.HasSuffix(p, "/") {
+	if !strings.HasSuffix(p, "/") {
 		p = p + "/"
 	}
 
-	// log.Printf("dirPath: %s => %s", s, p)
+	// log.Printf("dirPath: %s => >%s<", s, p)
 	return p
 }
 
@@ -135,7 +161,7 @@ func logRequestf(r *http.Request, fmtstr string, args ...interface{}) {
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request, url string) {
-	redir := "/api/activity/1h/"
+	redir := dirPath("api") + "activity/1h/"
 	if config.Verbose() {
 		logRequestf(r, "redirecting to %s", redir)
 	}

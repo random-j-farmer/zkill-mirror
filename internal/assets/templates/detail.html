@@ -1,17 +1,19 @@
 <!doctype html>
 <html>
+{{ $ap := .APIPath }}
+{{ $sp := .StaticPath }}
 <head>
     <title>Eve Online - Kill</title>
     <!-- inject:css -->
-    <link rel="stylesheet" href="/static/datatables.net-dt/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="/static/pure/pure-min.css">
+    <link rel="stylesheet" href="{{$sp}}datatables.net-dt/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{{$sp}}pure/pure-min.css">
     <!-- endinject -->
     <!-- inject:js -->
-    <script src="/static/jquery/dist/jquery.min.js"></script>
-    <script src="/static/datatables.net/js/jquery.dataTables.min.js"></script>
+    <script src="{{$sp}}jquery/dist/jquery.min.js"></script>
+    <script src="{{$sp}}datatables.net/js/jquery.dataTables.min.js"></script>
     <!-- endinject -->
 
-    <link rel="stylesheet" href="/static/detail.css">
+    <link rel="stylesheet" href="{{$sp}}detail.css">
 </head>
 
 <body style="padding: 24px;">
@@ -33,12 +35,12 @@
       </div>
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">System:</div>
-        <div class="detail-value pure-u-1"><a href="/api/solarSystemID/{{.SolarSystemID}}/"
+        <div class="detail-value pure-u-1"><a href="{{$ap}}solarSystemID/{{.SolarSystemID}}/"
           >{{.SolarSystemName}}</a></div>
       </div>
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">Region:</div>
-        <div class="detail-value pure-u-1"><a href="/api/regionID/{{.RegionID}}/">
+        <div class="detail-value pure-u-1"><a href="{{$ap}}regionID/{{.RegionID}}/">
           {{.RegionName}}</a></div>
       </div>
       <div class="detail-panel pure-g">
@@ -52,17 +54,17 @@
       </div>
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">Name:</div>
-        <div class="detail-value pure-u-1"><a href="/api/characterID/{{.Victim.CharacterID}}/"
+        <div class="detail-value pure-u-1"><a href="{{$ap}}characterID/{{.Victim.CharacterID}}/"
           >{{.Victim.CharacterName}}</a></div>
       </div>
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">Corporation:</div>
-        <div class="detail-value pure-u-1"><a href="/api/corporationID/{{.Victim.CorporationID}}/"
+        <div class="detail-value pure-u-1"><a href="{{$ap}}corporationID/{{.Victim.CorporationID}}/"
           >{{.Victim.CorporationName}}</a></div>
       </div>
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">Alliance:</div>
-        <div class="detail-value pure-u-1"><a href="/api/allianceID/{{.Victim.AllianceID}}/"
+        <div class="detail-value pure-u-1"><a href="{{$ap}}allianceID/{{.Victim.AllianceID}}/"
           >{{.Victim.AllianceName}}</a></div>
       </div>
       <div class="detail-panel pure-g">
@@ -98,17 +100,17 @@
       {{ range .Attackers }}
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">Name:</div>
-        <div class="detail-value pure-u-1"><a href="/api/characterID/{{.CharacterID}}/"
+        <div class="detail-value pure-u-1"><a href="{{$ap}}characterID/{{.CharacterID}}/"
           >{{.CharacterName}}</a></div>
       </div>
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">Corporation:</div>
-        <div class="detail-value pure-u-1"><a href="/api/corporationID/{{.CorporationID}}/"
+        <div class="detail-value pure-u-1"><a href="{{$ap}}corporationID/{{.CorporationID}}/"
           >{{.CorporationName}}</a></div>
       </div>
       <div class="detail-panel pure-g">
         <div class="detail-key pure-u">Alliance:</div>
-        <div class="detail-value pure-u-1"><a href="/api/allianceID/{{.AllianceID}}/"
+        <div class="detail-value pure-u-1"><a href="{{$ap}}allianceID/{{.AllianceID}}/"
           >{{.AllianceName}}</a></div>
       </div>
       <div class="detail-panel pure-g">

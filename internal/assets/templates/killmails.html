@@ -34,9 +34,10 @@
     </thead>
 
     <tbody>
+      {{$ap := .APIPath}}
       {{range $i, $e := .Killmails}}
       <tr class="{{evenOdd $i}}" role="row">
-        <td><a href="/api/killID/{{.KillID}}/">{{.KillTime}}</a></td>
+        <td><a href="{{$ap}}killID/{{.KillID}}/">{{.KillTime}}</a></td>
         <td>{{.SolarSystemName}}</td>
         <td>{{.RegionName}}</td>
         <td>{{.Security | printf "%0.1f"}}</td>

@@ -158,10 +158,11 @@ func apiActivity(w http.ResponseWriter, r *http.Request, q *apiQuery) error {
 	}
 
 	dot := struct {
+		APIPath      string
 		Time         string
 		Query        string
 		SolarSystems []*db.SystemStat
-	}{Time: time.Now().UTC().Format(db.EveTimeFormat), Query: q.String(), SolarSystems: stats}
+	}{APIPath: dirPath("api"), Time: time.Now().UTC().Format(db.EveTimeFormat), Query: q.String(), SolarSystems: stats}
 
 	return executeTemplate(w, r, templateName(q, "activity"), &dot)
 }
@@ -187,16 +188,19 @@ func apiWriteResponse(w http.ResponseWriter, r *http.Request, q *apiQuery, refs 
 	}
 
 	dot := struct {
+		APIPath   string
 		Time      string
 		Query     string
 		Killmails []*killmailInfo
-	}{Time: time.Now().UTC().Format(db.EveTimeFormat), Query: q.String(), Killmails: infos}
+	}{APIPath: dirPath("api"), Time: time.Now().UTC().Format(db.EveTimeFormat), Query: q.String(), Killmails: infos}
 
 	return executeTemplate(w, r, templateName(q, "killmails"), &dot)
 }
 
 type killmailInfo struct {
 	*zkb.Killmail
+	APIPath         string
+	StaticPath      string
 	Security        float32
 	VictimSummary   string
 	AttackerSummary string
@@ -218,6 +222,8 @@ func retrieveKillmails(refs []bobstore.Ref) ([]*killmailInfo, error) {
 		si := mapdata.SolarSystemByID(parsed.SolarSystemID)
 		kms[i] = &killmailInfo{
 			Killmail:        parsed,
+			APIPath:         dirPath("api"),
+			StaticPath:      dirPath("static"),
 			Security:        si.Security,
 			VictimSummary:   victimSummary(parsed),
 			AttackerSummary: attackerSummary(parsed),

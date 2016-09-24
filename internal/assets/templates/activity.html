@@ -45,10 +45,11 @@
     </tfoot>
 
     <tbody>
+      {{$ap := .APIPath}}
       {{range $i, $e := .SolarSystems}}
       <tr class="{{evenOdd $i}}" role="row">
-        <td><a href="/api/solarSystemID/{{.SolarSystemID}}/">{{.SolarSystemName}}</a></td>
-        <td><a href="/api/regionID/{{.RegionID}}/">{{.RegionName}}</a></td>
+        <td><a href="{{$ap}}solarSystemID/{{.SolarSystemID}}/">{{.SolarSystemName}}</a></td>
+        <td><a href="{{$ap}}regionID/{{.RegionID}}/">{{.RegionName}}</a></td>
         <td>{{.Security | printf "%0.1f"}}</td>
         <td>{{.Kills}}</td>
         <td>{{isk .TotalValue}}</td>

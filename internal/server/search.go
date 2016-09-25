@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
@@ -28,6 +29,9 @@ func searchHandler(w http.ResponseWriter, r *http.Request, _ string) {
 		logRequestf(r, "result: %#v", result)
 	}
 
-	executeTemplate(w, r, "search.html", result)
+	err = executeTemplate(w, r, "search.html", result)
+	if err != nil {
+		log.Printf("error in search template: %v", err)
+	}
 	return
 }

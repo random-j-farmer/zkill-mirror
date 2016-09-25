@@ -7,6 +7,7 @@
 (E) cache headers
 (E) crest killmail format
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
+x (A) base layout for html boilerplate
 x (A) configurable url prefix
 x (A) search by character, corp, alliance (maybe system, region)
 x (A) Killmails details: show items, fit?

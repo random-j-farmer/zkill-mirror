@@ -10,10 +10,12 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/random-j-farmer/zkill-mirror/internal/assets"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
+	"github.com/random-j-farmer/zkill-mirror/internal/db"
 )
 
 // Serve the web application.
@@ -81,7 +83,13 @@ func listenAndServe() error {
 
 var cachedTemplates = make(map[string]*template.Template)
 
-var templateFuncs = template.FuncMap{"json": jsonMarshal, "isk": formatISK, "evenOdd": evenOrOdd}
+var templateFuncs = template.FuncMap{
+	"json":           jsonMarshal,
+	"isk":            formatISK,
+	"evenOdd":        evenOrOdd,
+	"dirPath":        dirPath,
+	"currentEVETime": currentEVETime,
+}
 
 func jsonMarshal(data interface{}) template.HTML {
 	b, err := json.Marshal(data)
@@ -124,24 +132,45 @@ func evenOrOdd(data interface{}) string {
 	return "odd"
 }
 
+func currentEVETime() string {
+	return time.Now().UTC().Format(db.EveTimeFormat)
+}
+
 func executeTemplate(w http.ResponseWriter, r *http.Request, name string, data interface{}) error {
 	if strings.HasSuffix(name, ".json") {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 	}
 
-	return getTemplate(name).ExecuteTemplate(w, name, data)
+	layout := name
+	if strings.HasSuffix(name, ".html") {
+		layout = "layout" // execute layout template!
+	}
+
+	return getTemplate(name).ExecuteTemplate(w, layout, data)
 }
 
 func getTemplate(name string) *template.Template {
 	if config.CacheTemplates() {
 		return cachedTemplates[name]
 	}
+	var layoutBody = string(assets.MustAsset("layouts/layout.html"))
 	var body = string(assets.MustAsset("templates/" + name))
-	return template.Must(template.New(name).Funcs(templateFuncs).Parse(body))
+
+	tmpl, err := template.New(name).Funcs(templateFuncs).Parse(layoutBody)
+	if err != nil {
+		log.Printf("error parsing layout.html: %v", err)
+	}
+
+	tmpl, err = tmpl.Parse(body)
+	if err != nil {
+		log.Printf("error parsing %s: %v", name, err)
+	}
+	return tmpl
 }
 
 func mustParseTemplates() {
+	var layoutBody = string(assets.MustAsset("layouts/layout.html"))
 	for _, name := range assets.AssetNames() {
 		if strings.HasPrefix(name, "templates/") {
 			tname := name[len("templates/"):]
@@ -149,7 +178,7 @@ func mustParseTemplates() {
 				log.Printf("cached template: %s template: %s", name, tname)
 			}
 			var body = string(assets.MustAsset(name))
-			cachedTemplates[tname] = template.Must(template.New(tname).Funcs(templateFuncs).Parse(body))
+			cachedTemplates[tname] = template.Must(template.Must(template.New(tname).Funcs(templateFuncs).Parse(layoutBody)).Parse(body))
 		}
 	}
 }

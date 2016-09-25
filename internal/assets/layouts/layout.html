@@ -1,0 +1,31 @@
+{{ define "layout" -}}
+<!doctype html>
+<html>
+<head>
+    <title>{{template "title" .}}</title>
+    <!-- inject:css -->
+    <link rel="stylesheet" href="{{dirPath "static"}}datatables.net-dt/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{{dirPath "static"}}pure/pure-min.css">
+    <!-- endinject -->
+    <!-- inject:js -->
+    <script src="{{dirPath "static"}}jquery/dist/jquery.min.js"></script>
+    <script src="{{dirPath "static"}}datatables.net/js/jquery.dataTables.min.js"></script>
+    <!-- endinject -->
+    <link rel="stylesheet" href="{{dirPath "static"}}detail.css">
+</head>
+
+<body style="padding: 24px;">
+  <div class="pure-g">
+    <h1 class="pure-u-1-2">{{template "title" .}}</h1>
+    <h3 class="pure-u-1-2" style="text-align: right;">Time: {{ currentEVETime }}</h3>
+  </div>
+{{template "body" . -}}
+<script>
+{{template "script" . -}}
+</script>
+</body>
+</html>
+{{ end -}}
+{{ define "title" }}{{ end -}}
+{{ define "body" }}{{ end -}}
+{{ define "script" }}{{ end -}}

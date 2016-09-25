@@ -1,22 +1,5 @@
-<!doctype html>
-<html>
-<head>
-    <title>Eve Online - Search</title>
-    <!-- inject:css -->
-    <link rel="stylesheet" href="/static/datatables.net-dt/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="/static/pure/pure-min.css">
-    <!-- endinject -->
-    <!-- inject:js -->
-    <script src="/static/jquery/dist/jquery.min.js"></script>
-    <script src="/static/datatables.net/js/jquery.dataTables.min.js"></script>
-    <!-- endinject -->
-</head>
-
-<body style="padding: 24px;">
-  <div class="pure-g">
-    <h1 class="pure-u-1-2">EVE Online - Search</h1>
-  </div>
-
+{{ define "title" }}Eve Online ZKill Search{{ end -}}
+{{ define "body" }}
   {{ if .Characters }}
   <h2>Characters</h2>
   <ul>
@@ -67,5 +50,5 @@
   </ul>
   {{ end }}
 
-</body>
-</html>
+{{ end -}}
+{{ define "script" }}{{ end -}}

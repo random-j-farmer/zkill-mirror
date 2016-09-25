@@ -1,23 +1,5 @@
-<!doctype html>
-<html>
-<head>
-    <title>Eve Online - Kills</title>
-    <!-- inject:css -->
-    <link rel="stylesheet" href="/static/datatables.net-dt/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="/static/pure/pure-min.css">
-    <!-- endinject -->
-    <!-- inject:js -->
-    <script src="/static/jquery/dist/jquery.min.js"></script>
-    <script src="/static/datatables.net/js/jquery.dataTables.min.js"></script>
-    <!-- endinject -->
-</head>
-
-<body style="padding: 24px;">
-  <div class="pure-g">
-    <h1 class="pure-u-1-2">EVE Online - Kills</h1>
-    <h3 class="pure-u-1-2" style="text-align: right;">Time: {{.Time}}</h3>
-  </div>
-
+{{ define "title" }}EVE Online Kills{{ end -}}
+{{ define "body" -}}
 <table id="killmails" class="display dataTable" role="grid" cellspacing="0" width="100%">
     <caption>{{.Query}}</caption>
     <thead>
@@ -34,10 +16,9 @@
     </thead>
 
     <tbody>
-      {{$ap := .APIPath}}
       {{range $i, $e := .Killmails}}
       <tr class="{{evenOdd $i}}" role="row">
-        <td><a href="{{$ap}}killID/{{.KillID}}/">{{.KillTime}}</a></td>
+        <td><a href="{{dirPath "api"}}killID/{{.KillID}}/">{{.KillTime}}</a></td>
         <td>{{.SolarSystemName}}</td>
         <td>{{.RegionName}}</td>
         <td>{{.Security | printf "%0.1f"}}</td>
@@ -49,11 +30,9 @@
       {{end}}
     </tbody>
 </table>
-<script>
+{{ end -}}
+{{ define "script" -}}
 $(document).ready(function () {
     $('#killmails').dataTable({paging: false,  order: [[0, "desc"]] });
 });
-</script>
-
-</body>
-</html>
+{{ end -}}

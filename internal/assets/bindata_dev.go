@@ -18,6 +18,7 @@
 // templates/killmails.html
 // templates/killmails.json
 // templates/search.html
+// layouts/layout.html
 // DO NOT EDIT!
 
 // +build dev
@@ -370,6 +371,24 @@ func templatesSearchHtml() (*asset, error) {
 	return a, err
 }
 
+// layoutsLayoutHtml reads file data from disk. It returns an error on failure.
+func layoutsLayoutHtml() (*asset, error) {
+	path := filepath.Join(rootDir, "layouts/layout.html")
+	name := "layouts/layout.html"
+	bytes, err := bindataRead(path, name)
+	if err != nil {
+		return nil, err
+	}
+
+	fi, err := os.Stat(path)
+	if err != nil {
+		err = fmt.Errorf("Error reading asset info %s at %s: %v", name, path, err)
+	}
+
+	a := &asset{bytes: bytes, info: fi}
+	return a, err
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -440,6 +459,7 @@ var _bindata = map[string]func() (*asset, error){
 	"templates/killmails.html": templatesKillmailsHtml,
 	"templates/killmails.json": templatesKillmailsJson,
 	"templates/search.html": templatesSearchHtml,
+	"layouts/layout.html": layoutsLayoutHtml,
 }
 
 // AssetDir returns the file names below a certain
@@ -482,6 +502,9 @@ type bintree struct {
 	Children map[string]*bintree
 }
 var _bintree = &bintree{nil, map[string]*bintree{
+	"layouts": &bintree{nil, map[string]*bintree{
+		"layout.html": &bintree{layoutsLayoutHtml, map[string]*bintree{}},
+	}},
 	"static": &bintree{nil, map[string]*bintree{
 		"bundle.js": &bintree{staticBundleJs, map[string]*bintree{}},
 		"datatables.net": &bintree{nil, map[string]*bintree{

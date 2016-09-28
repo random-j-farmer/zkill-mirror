@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/random-j-farmer/bobstore"
 	"github.com/random-j-farmer/eveapi/mapdata"
+	"github.com/random-j-farmer/eveapi/types"
 	"github.com/random-j-farmer/zkill-mirror/internal/blobs"
 	"github.com/random-j-farmer/zkill-mirror/internal/config"
 	"github.com/random-j-farmer/zkill-mirror/internal/db"
@@ -194,11 +196,23 @@ func apiWriteResponse(w http.ResponseWriter, r *http.Request, q *apiQuery, refs 
 	return executeTemplate(w, r, templateName(q, "killmails"), &dot)
 }
 
+type gateInfo struct {
+	Distance float64
+	GateName string
+}
+
 type killmailInfo struct {
 	*zkb.Killmail
 	Security        float32
 	VictimSummary   string
 	AttackerSummary string
+	GateInfo        gateInfo
+}
+
+// distance in km
+func calcDistance(gate types.Gate, km *zkb.Killmail) float64 {
+	dx, dy, dz := (float64(gate.X) - km.Position.X), (float64(gate.Y) - km.Position.Y), (float64(gate.Z) - km.Position.Z)
+	return math.Sqrt(dx*dx+dy*dy+dz*dz) / 1000.0
 }
 
 func retrieveKillmails(refs []bobstore.Ref) ([]*killmailInfo, error) {
@@ -215,11 +229,33 @@ func retrieveKillmails(refs []bobstore.Ref) ([]*killmailInfo, error) {
 		}
 
 		si := mapdata.SolarSystemByID(parsed.SolarSystemID)
+
+		nearest := gateInfo{}
+		gates := mapdata.GatesBySolarSystemID(parsed.SolarSystemID)
+		if len(gates) > 0 {
+			nearest = gateInfo{Distance: calcDistance(gates[0], parsed), GateName: gates[0].GateName}
+		}
+		if len(gates) > 1 {
+			for _, gate := range gates[1:] {
+				d := calcDistance(gate, parsed)
+				if d < nearest.Distance {
+					nearest.Distance = d
+					nearest.GateName = gate.GateName
+				}
+			}
+		}
+		// no info if more than 500km
+		if nearest.Distance > 500.0 {
+			nearest.Distance = 0.0
+			nearest.GateName = ""
+		}
+
 		kms[i] = &killmailInfo{
 			Killmail:        parsed,
 			Security:        si.Security,
 			VictimSummary:   victimSummary(parsed),
 			AttackerSummary: attackerSummary(parsed),
+			GateInfo:        nearest,
 		}
 	}
 	return kms, nil

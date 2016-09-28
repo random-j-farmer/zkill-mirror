@@ -1,4 +1,3 @@
-(A) Killmails details: find nearest celestial/gate for kill
 (B) store schema version in boltdb, run reindex as needed
 (B) pull map/kills and map/jumps data, show in activity feed
 (B) extract killmail structure into eveapi, provide functions for zkillmail/zkill-mirror access
@@ -7,6 +6,7 @@
 (E) cache headers
 (E) crest killmail format
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
+x (A) Killmails details: find nearest celestial/gate for kill
 x (A) base layout for html boilerplate
 x (A) configurable url prefix
 x (A) search by character, corp, alliance (maybe system, region)

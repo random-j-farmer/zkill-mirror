@@ -8,6 +8,7 @@
         <th class="sorting">System</th>
         <th class="sorting">Region</th>
         <th class="sorting">Security</th>
+        <th class="sorting">Gate</th>
         <th class="sorting">Victim</th>
         <th class="sorting">Ship</th>
         <th class="sorting">Attackers</th>
@@ -22,6 +23,7 @@
         <td>{{.SolarSystemName}}</td>
         <td>{{.RegionName}}</td>
         <td>{{.Security | printf "%0.1f"}}</td>
+        <td>{{ if .GateInfo.GateName }}{{.GateInfo.GateName}} @ {{ printf "%.0fkm" .GateInfo.Distance }}{{ end }}</td>
         <td>{{.VictimSummary}}</td>
         <td>{{.Victim.ShipTypeName}}</td>
         <td>{{.AttackerSummary}}</td>

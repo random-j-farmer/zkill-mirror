@@ -6,6 +6,7 @@
 (E) cache headers
 (E) crest killmail format
 (Z) persistent cookiejar? https://github.com/juju/persistent-cookiejar
+x (A) wrong pilot is shown for final blow
 x (A) Killmails details: find nearest celestial/gate for kill
 x (A) base layout for html boilerplate
 x (A) configurable url prefix

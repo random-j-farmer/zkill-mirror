@@ -270,14 +270,11 @@ func victimSummary(km *zkb.Killmail) string {
 }
 
 func attackerSummary(km *zkb.Killmail) string {
-	var att *zkb.Attacker
+	att := km.Attackers[0]
 	for _, a := range km.Attackers {
 		if a.FinalBlow != 0 {
-			att = &a
+			att = a
 		}
-	}
-	if att == nil {
-		att = &km.Attackers[0]
 	}
 	allOrCorp := att.AllianceName
 	if allOrCorp == "" {
@@ -285,7 +282,7 @@ func attackerSummary(km *zkb.Killmail) string {
 	}
 	final := fmt.Sprintf("%s (%s)", att.CharacterName, allOrCorp)
 	if len(km.Attackers) > 1 {
-		return fmt.Sprintf("%s +%d", final, len(km.Attackers))
+		return fmt.Sprintf("%s +%d", final, len(km.Attackers)-1)
 	}
 
 	return final
